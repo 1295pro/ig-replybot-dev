@@ -1,0 +1,5 @@
+# Add inside the existing HTTPS site block; keep the current site's handler.
+# Expose only Meta's callback. Keep the control room off the public proxy.
+handle_path /ig/webhook {
+	reverse_proxy 127.0.0.1:3000
+}

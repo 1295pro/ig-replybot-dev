@@ -1,0 +1,32 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./runtime.env
+    environment:
+      IG_REPLY_BIND_ADDR: "0.0.0.0:3000"
+      IG_DATABASE_PATH: "/data/ig_reply_bot.sqlite3"
+    ports:
+      - "127.0.0.1:12950:3000"
+    volumes:
+      - bot-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:3000/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  bot-data:
