@@ -2,7 +2,7 @@
 
 A small self-hosted Rust service with a browser control room. It checks comments on your Instagram Professional account and accepts signed comment webhooks. When a new comment is exactly the configured keyword, it posts a public reply and sends one private reply through Meta's official Instagram API.
 
-Open `http://127.0.0.1:3000/` after starting the service to connect an Instagram account, set reply rules, pause or enable automation, and check queue health. The control room can also build and install a separate Docker deployment on a compatible VPS over SSH. Start with the [operator guide](docs/USER_GUIDE.md) for laptop-only, UI-assisted VPS, or manual Linux-server setup. See [the runtime architecture](docs/ARCHITECTURE.md) for delivery and security details.
+Open `http://127.0.0.1:3000/` after starting the service to connect an Instagram account, set reply rules, pause or enable automation, and check queue health. On Windows, double-click `start-local.cmd` after creating `.env.local`; see the [short Russian quick start](docs/QUICK_START_RU.md). The control room can also build and install a separate Docker deployment on a compatible VPS over SSH. Start with the [operator guide](docs/USER_GUIDE.md) for laptop-only, UI-assisted VPS, or manual Linux-server setup. See [the runtime architecture](docs/ARCHITECTURE.md) for delivery and security details.
 
 ## What it does
 
@@ -27,11 +27,11 @@ Meta changes its dashboard labels and API requirements over time. Follow the cur
 
 ## Get it from GitHub
 
-Replace the repository address with the GitHub URL where this project is published.
+This repository is currently private; GitHub access is required to clone it.
 
 ```powershell
-git clone https://github.com/YOUR-NAME/ig-reply-bot.git
-cd ig-reply-bot
+git clone https://github.com/1295pro/ig-replybot-dev.git
+cd ig-replybot-dev
 ```
 
 On macOS or Linux, the same commands work in Terminal. Install Rust from [rustup.rs](https://rustup.rs/) first if Cargo is not available.

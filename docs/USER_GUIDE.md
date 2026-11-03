@@ -25,18 +25,18 @@ The built-in webhook test in Meta's dashboard only tests the callback. For an ac
 
 ## Laptop only: Windows PowerShell
 
-Install [Git](https://git-scm.com/downloads) and [Rust](https://rustup.rs/) first. The default Windows Rust toolchain may also ask for Microsoft C++ Build Tools; follow the [Rust installation instructions](https://rust-lang.org/tools/install/?platform_override=win) if the linker is missing. Open a new PowerShell window after installing Rust so `cargo` is on your PATH. Clone the published repository URL; the URL below is an example placeholder until the maintainer publishes it:
+Install [Git](https://git-scm.com/downloads) and [Rust](https://rustup.rs/) first. The default Windows Rust toolchain may also ask for Microsoft C++ Build Tools; follow the [Rust installation instructions](https://rust-lang.org/tools/install/?platform_override=win) if the linker is missing. Open a new PowerShell window after installing Rust so `cargo` is on your PATH. The repository is currently private, so GitHub access is required:
 
 ```powershell
-git clone https://github.com/YOUR-NAME/ig-reply-bot.git
-Set-Location ig-reply-bot
+git clone https://github.com/1295pro/ig-replybot-dev.git
+Set-Location ig-replybot-dev
 Copy-Item .env.example .env.local
 notepad .env.local
 ```
 
 In `.env.local`, set `IG_ADMIN_PASSWORD` to a unique random value of at least 32 characters. Keep `IG_REPLY_BIND_ADDR=127.0.0.1:3000` and `IG_AUTOMATION_ENABLED=false`. The Meta token and reply settings can be entered in the browser panel after startup.
 
-Run the bot:
+On Windows, double-click `start-local.cmd` to build, start, and open the local control room. The equivalent terminal command is:
 
 ```powershell
 cargo run --release --locked
@@ -135,6 +135,8 @@ The full variable list is in [README.md](../README.md#settings) and the safe tem
 | File | Purpose |
 | --- | --- |
 | `README.md` | Project overview, requirements, configuration table, and release checks. |
+| `start-local.cmd` and `scripts/start-local.ps1` | Windows one-click local build, launch, and browser opening. |
+| `docs/QUICK_START_RU.md` | Short Russian instructions for local setup and checks. |
 | `docs/USER_GUIDE.md` | Laptop and server setup, operations, and this file map. |
 | `docs/ARCHITECTURE.md` | Event flow, trust boundaries, failure behavior, and release criteria. |
 | `.env.example` | Safe settings template. Copy it; do not put real secrets here. |
