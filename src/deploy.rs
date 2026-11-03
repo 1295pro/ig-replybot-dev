@@ -448,7 +448,7 @@ async fn deploy_authenticated(
         &remote_directory,
         remote_admin_password,
         config,
-        connection.service_port,
+        connection,
     )
     .await;
     if let Err(error) = connection_result {
@@ -538,7 +538,7 @@ async fn upload_bundle(
     remote_directory: &str,
     remote_admin_password: &str,
     config: &Config,
-    service_port: u16,
+    connection: &ConnectionInput,
 ) -> Result<(), String> {
     let channel = session
         .channel_open_session()
@@ -557,7 +557,7 @@ async fn upload_bundle(
             .await
             .map_err(|_| "Could not create the application source folders".to_owned())?;
     }
-    let compose_file = render_compose(service_port)?;
+    let compose_file = render_compose(connection.service_port)?;
     for (relative_path, contents) in DEPLOY_FILES {
         let rendered = if *relative_path == "compose.yaml" {
             compose_file.as_bytes()
@@ -572,7 +572,11 @@ async fn upload_bundle(
         .await?;
     }
 
-    let env_file = Zeroizing::new(build_runtime_env(config, remote_admin_password)?);
+    let env_file = Zeroizing::new(build_runtime_env(
+        config,
+        remote_admin_password,
+        connection,
+    )?);
     sftp_create_file(
         &sftp,
         &format!("{remote_directory}/runtime.env"),
@@ -612,7 +616,11 @@ async fn sftp_create_file(
         .map_err(|_| "Could not finish uploading an application file".to_owned())
 }
 
-fn build_runtime_env(config: &Config, admin_password: &str) -> Result<String, String> {
+fn build_runtime_env(
+    config: &Config,
+    admin_password: &str,
+    connection: &ConnectionInput,
+) -> Result<String, String> {
     let access_token = config
         .ig_access_token
         .as_deref()
@@ -639,6 +647,12 @@ fn build_runtime_env(config: &Config, admin_password: &str) -> Result<String, St
         ("PRIVATE_REPLY_TEXT", &config.private_reply_text),
         ("META_APP_SECRET", &config.app_secret),
         ("META_WEBHOOK_VERIFY_TOKEN", &config.webhook_verify_token),
+        ("IG_DEPLOY_HOST", &connection.host),
+        ("IG_DEPLOY_SSH_PORT", &connection.ssh_port.to_string()),
+        (
+            "IG_DEPLOY_SERVICE_PORT",
+            &connection.service_port.to_string(),
+        ),
     ];
     Ok(fields
         .into_iter()
@@ -858,12 +872,24 @@ mod tests {
     fn runtime_env_quotes_values_without_forwarding_local_admin_password() {
         let mut config = sample_config();
         config.public_reply_text = "We're ready\n$HOME #literal".to_owned();
-        let rendered = build_runtime_env(&config, "remote-password-0123456789-0123456789").unwrap();
+        let connection = ConnectionInput {
+            host: "bot.example.com".to_owned(),
+            ssh_port: 22,
+            service_port: 12950,
+            username: "root".to_owned(),
+        };
+        let rendered = build_runtime_env(
+            &config,
+            "remote-password-0123456789-0123456789",
+            &connection,
+        )
+        .unwrap();
         assert!(rendered.contains("PUBLIC_REPLY_TEXT='We\\'re ready\n$HOME #literal'"));
         assert!(rendered.contains("IG_ADMIN_PASSWORD='remote-password-0123456789-0123456789'"));
         assert!(!rendered.contains(&config.admin_password));
         assert!(rendered.contains("IG_AUTOMATION_ENABLED='true'"));
         assert!(rendered.contains("IG_POLL_ENABLED='true'"));
+        assert!(rendered.contains("IG_DEPLOY_HOST='bot.example.com'"));
     }
 
     #[test]

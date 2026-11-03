@@ -32,6 +32,13 @@ pub struct QueueSummary {
     pub needs_attention: u64,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DeploymentTarget {
+    pub host: String,
+    pub ssh_port: u16,
+    pub service_port: u16,
+}
+
 #[derive(Serialize)]
 pub struct RecentActivity {
     pub received_at: i64,
@@ -295,6 +302,60 @@ impl Database {
             .map_err(|error| format!("check saved bot settings: {error}"))
     }
 
+    pub fn save_deployment_target(&self, target: &DeploymentTarget) -> Result<(), String> {
+        let serialized = serde_json::to_string(target)
+            .map_err(|error| format!("serialize deployment target: {error}"))?;
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| "database lock was poisoned".to_owned())?;
+        connection
+            .execute(
+                "INSERT INTO app_settings (key, value) VALUES ('deployment_target', ?1)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                [&serialized],
+            )
+            .map_err(|error| format!("save deployment target: {error}"))?;
+        Ok(())
+    }
+
+    pub fn load_deployment_target(&self) -> Result<Option<DeploymentTarget>, String> {
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| "database lock was poisoned".to_owned())?;
+        let value = connection
+            .query_row(
+                "SELECT value FROM app_settings WHERE key = 'deployment_target'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|error| format!("load deployment target: {error}"))?;
+        value
+            .map(|serialized| {
+                serde_json::from_str(&serialized)
+                    .map_err(|error| format!("read saved deployment target: {error}"))
+            })
+            .transpose()
+    }
+
+    pub fn has_completed_delivery_for_account(&self, account_id: &str) -> Result<bool, String> {
+        let connection = self
+            .connection
+            .lock()
+            .map_err(|_| "database lock was poisoned".to_owned())?;
+        connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM matched_comments
+                 WHERE account_id = ?1 AND public_reply_status = 'sent'
+                   AND private_reply_status = 'sent')",
+                [account_id],
+                |row| row.get(0),
+            )
+            .map_err(|error| format!("check completed delivery: {error}"))
+    }
+
     pub fn recent_activity(&self, limit: u32) -> Result<Vec<RecentActivity>, String> {
         let connection = self
             .connection
@@ -454,7 +515,7 @@ fn ensure_column(connection: &Connection, column: &str) -> Result<bool, String> 
 
 #[cfg(test)]
 mod tests {
-    use super::{Database, DeliveryKind, PolledComment};
+    use super::{Database, DeliveryKind, DeploymentTarget, PolledComment};
     use crate::webhook::MatchedComment;
     use std::path::Path;
 
@@ -479,6 +540,28 @@ mod tests {
         assert!(matches!(private.kind, DeliveryKind::PrivateReply));
         database.finish_delivery(&private, "sent").unwrap();
         assert!(database.claim_next().unwrap().is_none());
+        assert!(database.has_completed_delivery_for_account("123").unwrap());
+        assert!(
+            !database
+                .has_completed_delivery_for_account("other")
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn remembers_the_selected_vps_without_marking_reply_rules_saved() {
+        let database = Database::open(Path::new(":memory:")).unwrap();
+        let target = DeploymentTarget {
+            host: "192.0.2.10".to_owned(),
+            ssh_port: 2222,
+            service_port: 12950,
+        };
+        database.save_deployment_target(&target).unwrap();
+        let loaded = database.load_deployment_target().unwrap().unwrap();
+        assert_eq!(loaded.host, target.host);
+        assert_eq!(loaded.ssh_port, target.ssh_port);
+        assert_eq!(loaded.service_port, target.service_port);
+        assert!(!database.has_saved_settings().unwrap());
     }
 
     #[test]

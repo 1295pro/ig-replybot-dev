@@ -14,12 +14,16 @@ Ordinary commenters do **not** need to be Meta app testers. App roles govern whi
 
 The default poll interval is 60 seconds. Keep the laptop awake and connected while using the laptop setup. A sleeping or powered-off laptop cannot process comments. Reducing the interval increases Meta API usage. The server setup is better for continuous operation.
 
+The control room has a **VPS / Self-hosted** view switch. A VPS deployment made by the installer shows its saved address and private panel port. **Change VPS** opens the installer from the local control room. A new deployment has a separate database and does not copy delivery history; pause the old bot before enabling the new one. The **Self-hosted** view explains the laptop or home-server setup.
+
 ## Before either setup: configure Meta
 
 1. Use an Instagram Business or Creator account. Create your own Meta developer app with Instagram Login. Do not copy another operator's token or app secret.
 2. Make sure the app/token can use `instagram_business_basic`, `instagram_business_manage_comments`, and `instagram_business_manage_messages` for that professional account.
 3. Generate an access token for that account. Record its expiration date: this bot does **not** refresh tokens automatically. The control room checks the token and reads the account ID and username for you.
 4. Meta's app secret and a separate webhook verify token are only needed if you enable webhooks. Polling works without them.
+
+Each person running their own copy needs their own Meta app and token. For accounts outside the app's roles, Meta may require App Review and Advanced Access for the relevant permissions. Public Privacy Policy, Terms of Service, and data-deletion links must describe that person's service and retention. Having the URLs alone does not grant permission approval.
 
 The built-in webhook test in Meta's dashboard only tests the callback. For an acceptance test, a **different ordinary Instagram account** should leave a new comment containing exactly your keyword under a post on the connected professional account.
 
@@ -126,7 +130,7 @@ The full variable list is in [README.md](../README.md#settings) and the safe tem
 - The logs record a public reply and a private reply separately. A failed public reply stops the private step. Meta can reject a request because of permissions, token expiration, account eligibility, or its current rules.
 - A definite API rejection is marked `failed`. A network interruption after a request is marked `uncertain`; neither state is retried automatically because the message may already have been delivered. There is no operator UI for reviewing or retrying those rows yet.
 - The first complete poll records existing comments without replying. A comment hidden or delayed by Meta during that baseline may appear later as new. The poller rechecks changed media for three polls and scans all media every ten completed polls.
-- The token is not renewed automatically. The database has no automatic retention or cleanup policy. The bot handles one connected account per process and has no user-facing dashboard.
+- The token is not renewed automatically. The database has no automatic retention or cleanup policy. The bot handles one connected account per process.
 - Each Meta collection is limited to 20 pages of up to 100 items. If an account has more than 2,000 media items or a post has more than 2,000 top-level comments, a poll fails rather than silently skipping the rest. This version is intended for a small self-hosted account, not a high-volume multi-account service.
 - Keep the repository, `.env.local`, service environment file, and database private as appropriate. `.env*` (except `.env.example`), database files, and build output are ignored by Git. Before publishing, inspect `git status` for unexpected files.
 

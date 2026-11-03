@@ -10,6 +10,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::Sha256;
 use std::{
+    env,
     net::SocketAddr,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -18,6 +19,7 @@ use crate::{
     config::Config,
     deploy::{self, ConnectionInput, InstallInput, PreflightInput},
     meta_api::MetaApi,
+    storage::DeploymentTarget,
     webhook::AppState,
 };
 
@@ -136,8 +138,20 @@ async fn deploy_install(
     if let Err(error) = deploy::ensure_deployable_config(&config) {
         return error_response(StatusCode::CONFLICT, error);
     }
+    let target = DeploymentTarget {
+        host: input.connection.host.clone(),
+        ssh_port: input.connection.ssh_port,
+        service_port: input.connection.service_port,
+    };
     match deploy::deploy(input, &config).await {
-        Ok(result) => (StatusCode::OK, Json(result)).into_response(),
+        Ok(result) => {
+            if let Err(error) = state.database().save_deployment_target(&target) {
+                eprintln!(
+                    "deployment succeeded, but its address could not be saved locally: {error}"
+                );
+            }
+            (StatusCode::OK, Json(result)).into_response()
+        }
         Err(error) => error_response(StatusCode::BAD_GATEWAY, error),
     }
 }
@@ -198,6 +212,10 @@ async fn status(State(state): State<AppState>, headers: HeaderMap) -> Response {
         Ok(saved) => saved,
         Err(error) => return error_response(StatusCode::SERVICE_UNAVAILABLE, error),
     };
+    let deployment = match state.database().load_deployment_target() {
+        Ok(target) => target,
+        Err(error) => return error_response(StatusCode::SERVICE_UNAVAILABLE, error),
+    };
     let last_poll = state.last_poll_success();
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -212,6 +230,32 @@ async fn status(State(state): State<AppState>, headers: HeaderMap) -> Response {
         "healthy"
     };
     let connected = config.ig_access_token.is_some() && !config.ig_username.is_empty();
+    let live_test_passed = match config.ig_user_id.as_deref() {
+        Some(account_id) => match state
+            .database()
+            .has_completed_delivery_for_account(account_id)
+        {
+            Ok(passed) => passed,
+            Err(error) => return error_response(StatusCode::SERVICE_UNAVAILABLE, error),
+        },
+        None => false,
+    };
+    let rules_configured = rules_configured(&config, connected, settings_saved, live_test_passed);
+    let deployment = env::var("IG_DEPLOY_HOST")
+        .ok()
+        .filter(|host| !host.trim().is_empty())
+        .map(|host| DeploymentTarget {
+            host,
+            ssh_port: env::var("IG_DEPLOY_SSH_PORT")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(22),
+            service_port: env::var("IG_DEPLOY_SERVICE_PORT")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(12950),
+        })
+        .or(deployment);
     let configured = json!({
         "connected": connected,
         "app_secret": !config.app_secret.is_empty(),
@@ -232,8 +276,25 @@ async fn status(State(state): State<AppState>, headers: HeaderMap) -> Response {
         "queue": queue,
         "recent_activity": recent_activity,
         "settings_saved": settings_saved,
+        "rules_configured": rules_configured,
+        "live_test_passed": live_test_passed,
+        "deployment": deployment,
     });
     (StatusCode::OK, Json(body)).into_response()
+}
+
+fn rules_configured(
+    config: &Config,
+    connected: bool,
+    settings_saved: bool,
+    live_test_passed: bool,
+) -> bool {
+    settings_saved
+        || (connected
+            && (config.automation_enabled || live_test_passed)
+            && !config.keyword.trim().is_empty()
+            && !config.public_reply_text.trim().is_empty()
+            && !config.private_reply_text.trim().is_empty())
 }
 
 async fn connect(
