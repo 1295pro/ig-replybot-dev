@@ -1,14 +1,13 @@
 # IG Reply Bot
 
-Turn an Instagram comment into a public reply and a DM. Connect your account, choose a trigger word, and control the bot from a browser interface.
+IG Reply Bot watches comments on one Instagram Business or Creator account. When a new comment matches your trigger, it posts your public reply and sends your DM. You set it up in a browser; it can run on your computer or on a VPS.
 
-[Download the app](https://github.com/1295pro/ig-replybot-dev/releases/latest) · [Setup guide](docs/USER_GUIDE.md) · [Quick start](docs/QUICK_START.md) · [MIT license](LICENSE)
+[Download the latest version](https://github.com/1295pro/ig-replybot-dev/releases/latest) · [Quick start](docs/QUICK_START.md) · [Full setup guide](docs/USER_GUIDE.md) · [MIT license](LICENSE)
 
 ![IG Reply Bot control room in Self-hosted mode](docs/images/control-room.jpg)
 
-*Example profile shown in the control room.*
 
-## Start on your computer
+## Get started
 
 1. Download the ZIP for your operating system from **Releases** and extract it.
 2. On Windows, double-click **start-local.cmd**. On macOS, open **start-local.command**. On Linux, run **./start-local.sh**.
@@ -17,7 +16,7 @@ Turn an Instagram comment into a public reply and a DM. Connect your account, ch
 5. Save your trigger word, public reply, and private message. Choose **Self-hosted** to keep the bot on this computer.
 6. Enable the bot. Once polling is healthy, leave a **new** trigger-word comment from another account and check for both replies.
 
-The laptop needs to stay awake, online, and running the app. Comments are checked every minute by default. Polling works on a normal home connection; a static IP, public domain, or VPS is optional.
+The computer needs to stay awake, online, and running the app. Comments are checked every minute by default. Polling works on a normal home connection; you do not need a static IP, public domain, or VPS.
 
 For example, with the trigger `bot`, a new comment saying `BOT!` receives your public reply followed by one DM. `I want a bot` does not match. Existing comments form the first-run baseline and are not answered.
 
@@ -27,7 +26,13 @@ Windows builds are unsigned. Windows 11 Smart App Control can block them without
 
 Use an Instagram **Business or Creator** account and your own Meta developer app with Instagram Login. The token needs `instagram_business_basic`, `instagram_business_manage_comments`, and `instagram_business_manage_messages`. The account connection form links to Meta's dashboard and checks your token for you.
 
-Creating the Meta app, obtaining its token, and any required App Review happen in Meta's dashboard. Permission requirements depend on the accounts your app serves. Ordinary commenters do not need to be app testers. See the [Meta setup steps](docs/USER_GUIDE.md#connect-instagram).
+Use Meta's dashboard to create the app and get your token. Follow the [full setup guide](docs/USER_GUIDE.md#connect-instagram) if you are setting this up for the first time or Meta asks for a website or policy links. Test the public reply and DM with a new comment from an Instagram account outside your app's roles.
+
+## Publish policy pages for Meta
+
+Some Meta app setups ask for public Privacy Policy, Terms of Service, and Data Deletion pages. You can publish your own pages with Google Sites; a custom domain is not required. Start with the [Instagram Reply Bot policy template](https://sites.google.com/view/ig-replybot-1295-policies/), copy its page text into a site you control, then publish your own URLs and enter those links in your Meta app.
+
+**IMPORTANT: EDIT THE TEMPLATE BEFORE SUBMITTING IT TO META.** Replace every placeholder with your own name or business, Instagram account, contact details, hosting provider, and accurate information about your bot’s data, retention, security, and deletion process. Review every page, remove all bracketed instructions, and publish only after the text accurately describes your installation. Do not submit the template unchanged. Meta may require additional app setup or review; publishing policy pages does not guarantee approval.
 
 ## Run continuously on a VPS
 
@@ -53,4 +58,4 @@ cargo run --release --locked -- --local
 
 Windows users can also double-click `start-local.cmd` in the source folder. Building on Windows requires the Microsoft C++ build tools requested by Rust. Ready-to-run release downloads include the compiled app.
 
-[Developer and manual service reference](docs/ADVANCED.md) · [Architecture](docs/ARCHITECTURE.md) · [Validation report](docs/RELEASE_VALIDATION.md) · [File map](docs/USER_GUIDE.md#file-map)
+[For contributors: project files](docs/USER_GUIDE.md#project-files) · [Advanced setup](docs/ADVANCED.md) · [How releases are tested](docs/TESTING.md) · [Architecture](docs/ARCHITECTURE.md)

@@ -1,13 +1,21 @@
-IG Reply Bot brings comment-to-DM automation to a browser control room.
+# IG Reply Bot
 
-Validated with 25 automated tests, platform startup checks on Windows/Linux/macOS, browser interface checks, and a real Instagram public-reply + DM test running exclusively on a laptop while the VPS bot was stopped. See docs/RELEASE_VALIDATION.md for scope and operating limits.
+Connect your own Instagram Business or Creator account, set a trigger and two replies, then run the bot on your computer or on a VPS.
 
-- Connect your own Instagram Business or Creator account using a Meta access token.
-- Set a trigger word, public reply, and DM in the interface.
-- Run on a laptop with polling, or deploy a separate Docker instance to an Ubuntu/Debian VPS through the SSH wizard.
-- Local launch creates panel access automatically and keeps settings in your user data folder between updates.
-- Check polling, setup progress, and individual delivery results from the control room.
+## Included
 
-Download the platform ZIP, extract it, and open its launcher. Ready-to-run packages include the compiled app. Source downloads require Rust. All packages are unsigned; SHA256 checksums are included. Windows 11 Smart App Control can block unsigned apps without a per-app exception; a trusted signed distribution is needed for that mode.
+- A browser control room for your account, trigger, public reply, and DM.
+- Local polling for a laptop or home server. No public IP, domain, or port forwarding is needed for this mode.
+- An installer that creates a separate Docker service on Ubuntu or Debian VPS hosts.
+- Separate status for polling, public replies, and private replies.
 
-Use your own Meta app and token. Meta controls permission approval and token validity. Keep a laptop awake for local operation. Tokens require manual renewal, saved credentials are not encrypted at rest, and failed/uncertain deliveries are not retried automatically. See the setup guide for the complete operating limits.
+## Before you start
+
+- Create your own Meta app and connect an Instagram access token with the required permissions.
+- Keep a local computer awake and online while the bot is running, or use the VPS installer for continuous operation.
+- Tokens and saved settings are not encrypted at rest. Protect the computer, VPS, and backups that contain the app data.
+- Tokens need manual renewal. The bot handles one Instagram account per process.
+- Failed or uncertain deliveries are shown for review and are not automatically retried.
+- The ready-to-run packages are unsigned. Windows 11 Smart App Control may block the Windows build without offering a per-app exception.
+
+Meta controls account access, token validity, API limits, and message delivery. See the [quick start](docs/QUICK_START.md), [full setup guide](docs/USER_GUIDE.md), and [testing notes](docs/TESTING.md) before deploying.
