@@ -14,8 +14,8 @@ Both modes use the same control room and reply rules. The **VPS / Self-hosted** 
 Download and extract your operating system's ZIP from [Releases](https://github.com/1295pro/ig-replybot-dev/releases/latest).
 
 - **Windows x64:** double-click `start-local.cmd`.
-- **macOS:** open `start-local.command` from the ZIP matching your Mac (Apple Silicon or Intel).
-- **Linux x64:** run `./start-local.sh` in the extracted folder.
+- **macOS 12+:** open `start-local.command` from the ZIP matching your Mac (Apple Silicon or Intel).
+- **Linux x64 (glibc 2.39+, such as Ubuntu 24.04+):** run `./start-local.sh` in the extracted folder.
 
 The packaged apps include the executable. The first launch creates a private panel password and opens `http://127.0.0.1:3000/` with automatic sign-in. New installations start paused. Subsequent launches reuse your settings; opening the launcher again while the app is running reopens its panel.
 

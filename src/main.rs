@@ -66,7 +66,7 @@ async fn main() {
         })
     });
     // Service mode supports existing environment-based installations.
-    // and fill any missing values from the conventional .env file.
+    // Process values take precedence over .env.local, then .env.
     if !local_mode
         && Path::new(".env.local").exists()
         && dotenvy::from_filename(".env.local").is_err()
