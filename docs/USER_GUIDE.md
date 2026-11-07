@@ -19,9 +19,15 @@ Download and extract your operating system's ZIP from [Releases](https://github.
 
 The packaged apps include the executable. The first launch creates a private panel password and opens `http://127.0.0.1:3000/` with automatic sign-in. New installations start paused. Subsequent launches reuse your settings; opening the launcher again while the app is running reopens its panel.
 
-The builds are unsigned, so your operating system may ask you to approve opening them. Download only from this repository's releases. Use the included SHA256 checksums to verify a download if needed.
+The builds are unsigned. macOS may require approval before opening them; Windows Smart App Control can block them entirely. Download only from this repository's releases. Use the included SHA256 checksums to verify a download if needed.
 
 A source-code ZIP is different from a platform release ZIP. For a source download, install Rust (and its requested Windows C++ build tools), then use the same launcher or `cargo run --release --locked -- --local`.
+
+## Windows launch limitation
+
+On Windows 11 with Smart App Control enabled, the unsigned executable may be blocked, including helper executables built from source. The app cannot grant itself an exception. Microsoft currently provides no per-app allow list for Smart App Control; a trusted signing certificate is the distribution solution. See [Microsoft's Smart App Control FAQ](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions).
+
+If Windows blocks the app, use a permitted environment or wait for a trusted signed distribution. The launcher does not change Windows security settings. This limitation is distinct from a browser sign-in or Instagram permission error.
 
 ## Connect Instagram
 

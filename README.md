@@ -17,6 +17,8 @@ The laptop needs to stay awake, online, and running the app. Comments are checke
 
 For example, with the trigger `bot`, a new comment saying `BOT!` receives your public reply followed by one DM. `I want a bot` does not match. Existing comments form the first-run baseline and are not answered.
 
+Windows builds are unsigned. Windows 11 Smart App Control can block them without offering a per-app exception. Check the [Windows launch limitation](docs/USER_GUIDE.md#windows-launch-limitation) before choosing the Windows download.
+
 ## What you need from Meta
 
 Use an Instagram **Business or Creator** account and your own Meta developer app with Instagram Login. The token needs `instagram_business_basic`, `instagram_business_manage_comments`, and `instagram_business_manage_messages`. The account connection form links to Meta's dashboard and checks your token for you.

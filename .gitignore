@@ -1,4 +1,7 @@
 /target
+/dist
+/ig-reply-bot
+/ig-reply-bot.exe
 .env
 .env.*
 !.env.example
