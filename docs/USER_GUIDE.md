@@ -1,4 +1,6 @@
-# Setup and usage
+# IG Reply Bot: setup and day-to-day use
+
+This guide starts from zero: choose where the bot runs, create your Meta app, connect Instagram, and check the first reply. If you already have a working access token and only want to try the app, use the [quick start](QUICK_START.md).
 
 ## Choose where the bot runs
 
@@ -13,7 +15,7 @@ Both modes use the same control room and reply rules. The **VPS / Self-hosted** 
 
 Download and extract your operating system's ZIP from [Releases](https://github.com/1295pro/ig-replybot-dev/releases/latest).
 
-- **Windows x64:** double-click `start-local.cmd`.
+- **Windows x64:** open `start-local.cmd`.
 - **macOS 12+:** open `start-local.command` from the ZIP matching your Mac (Apple Silicon or Intel).
 - **Linux x64 (glibc 2.39+, such as Ubuntu 24.04+):** run `./start-local.sh` in the extracted folder.
 
@@ -32,13 +34,25 @@ If Windows blocks the app, use a permitted environment or wait for a trusted sig
 ## Connect Instagram
 
 1. Use an Instagram **Business or Creator** account.
-2. Open the [Meta App Dashboard](https://developers.facebook.com/apps/) and create your own app with Instagram Login. Follow Meta's current setup for the Instagram API.
-3. Configure access to `instagram_business_basic`, `instagram_business_manage_comments`, and `instagram_business_manage_messages`, then generate an access token for your account. Record the expiration date; the bot does not renew tokens automatically.
-4. In the control room, paste the token under **Connect Instagram** and select **Verify and connect**. The bot checks it with Meta and displays your username.
+2. Open the [Meta App Dashboard](https://developers.facebook.com/apps/) and create your own app. Choose Instagram API with Instagram Login. In the Instagram API setup, add the professional account you want the bot to manage. If Meta sends an Instagram Tester invitation for that account, accept it before generating the token.
+3. Make sure the app can use `instagram_business_basic`, `instagram_business_manage_comments`, and `instagram_business_manage_messages`. Generate an access token for the account you added and note its expiry date. Renew the token before it expires and reconnect with the new one in the control room.
+4. In the control room, paste the token under **Connect Instagram** and select **Verify and connect**. The bot checks the token with Meta and displays the account name.
 
-Each operator uses their own Meta app and credentials. Accounts outside an app's roles may require App Review and Advanced Access. Ordinary people leaving comments do not need to be Meta app testers. Meta controls permission eligibility and approval. See [Instagram API with Instagram Login](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/).
+Start with your own Meta app and an Instagram account you manage. Meta's comment moderation guide describes Standard Access for accounts you own or manage and have added to your app. If your app will connect accounts you do not manage, check the current Advanced Access and App Review requirements for the permissions you use. A token check confirms the connected account; it does not grant access to other accounts. Use the [real comment test](#run-on-your-laptop) to check that a public reply and DM reach a commenter outside your app's roles. [Meta's comment moderation guide](https://developers.facebook.com/docs/instagram-platform/comment-moderation/)
 
-If Meta asks for Privacy Policy, Terms of Service, or data-deletion URLs, host public pages that describe your own deployment, data retention, and contact/deletion process. Another operator's pages do not describe your service automatically. See [policy page notes](../deploy/LEGAL-PAGES.md).
+### Meta asks for policy links
+
+Meta may ask for public Privacy Policy, Terms of Service, and data-deletion pages. The exact fields depend on your app and the current App Dashboard.
+
+If you already have a website, use it. If you do not, Google Sites can host your pages at a Google URL; you do not need to buy a custom domain just for this.
+
+1. Open the [Instagram Reply Bot policy template](https://sites.google.com/view/ig-replybot-1295-policies/). In a Google Site you control, create matching pages and copy the text from each public reference page. The reference pages are examples; do not submit their URLs as your own policy pages.
+2. Replace every bracketed field with your own details: the person or business responsible for the bot, Instagram account, contact method, hosting provider, and any other requested information.
+3. Check every statement against your actual setup. In particular, describe what your instance stores, how long it keeps those records, and how someone can request deletion. Remove all placeholders and editing notes before publishing.
+4. Publish your pages so anyone can open them without signing in. Open each published link in a private browser window to confirm it loads.
+5. Add your own published page URLs to the matching fields in your Meta App Dashboard.
+
+**Important:** the template is not legal advice and is not ready to submit unchanged. Meta may ask for other app details or review steps; public policy links alone do not guarantee approval. If Meta specifically requires proof that you control a domain, a Google-hosted address may not satisfy that separate requirement. See [Google Sites publishing help](https://support.google.com/sites/answer/6372880).
 
 The token is enough for polling. **Meta app secret** and **Webhook verify token** are used only for optional webhooks. A webhook requires a public HTTPS callback, so laptop operation normally uses polling.
 
@@ -55,7 +69,7 @@ The bot sends the public reply first, then one private reply for that comment. T
 1. Choose **Self-hosted**, keep polling enabled, and pause any other bot copy connected to the same account.
 2. Select **Enable bot** and confirm your reply rule.
 3. Wait for polling to become healthy. The first full scan establishes a baseline; old comments are skipped.
-4. From a different Instagram account, leave a **new** comment containing the trigger under a post on the connected account.
+4. From a different Instagram account with no role in the Meta app, leave a **new** comment with the exact trigger under a post on the connected account.
 5. Confirm the public reply and DM. **Recent activity** shows each delivery; **Setup progress** shows **Passed** after a completed public reply and DM for this account.
 
 The default interval is one minute, plus Meta's processing time. Keep the app running, your laptop awake, and internet connected. A sleeping or powered-off laptop cannot answer comments. Closing the browser tab keeps the bot running. **Pause bot** stops new automated replies; Ctrl+C in the app window exits the process. Pause before intentionally shutting down during a delivery.
@@ -102,7 +116,9 @@ To back up or move a laptop installation, stop the app and copy the entire app d
 
 The bot handles one account per process. Tokens need manual renewal. Stored rows have no automatic retention cleanup. Each Meta collection is limited to 20 pages of up to 100 items; exceeding that fails the poll rather than silently omitting comments. A successful webhook handshake only checks callback reachability; use a real new comment to check replies.
 
-## File map
+## Project files
+
+This section is for people reading the source or contributing code. If you only want to use the app, you can skip it.
 
 | File | Purpose |
 | --- | --- |
@@ -111,6 +127,7 @@ The bot handles one account per process. Tokens need manual renewal. Stored rows
 | `docs/QUICK_START.md` | Short UI setup and first comment test. |
 | `docs/USER_GUIDE.md` | Laptop and server setup, operations, and this file map. |
 | `docs/ARCHITECTURE.md` | Event flow, trust boundaries, failure behavior, and release criteria. |
+| `docs/TESTING.md` | What the release checks cover and how to run them from source. |
 | `.env.example` | Safe settings template. Copy it; do not put real secrets here. |
 | `.gitignore` | Keeps local secrets, SQLite files, and compiled output out of Git. |
 | `start-local.sh` | macOS/Linux local launcher. Packaged macOS builds also include `start-local.command`. |
