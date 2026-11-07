@@ -20,6 +20,12 @@ These checks use no live Instagram account and send no real comments or DMs. Win
 
 The existing VPS was updated to the same application version. Its container is healthy, identifies the configured Instagram account, reports healthy polling, and has no queued or attention-required deliveries. Its earlier completed delivery is not counted as a laptop acceptance test.
 
+## Browser interface check
+
+The current HTML was also exercised in a browser against a loopback fixture with sample data. Automatic fragment sign-in removed the fragment from the address bar, the VPS installer appeared only in VPS mode, unsaved trigger text survived a real 20-second background-refresh interval, and saving updated the visible trigger. The README screenshot uses this sample profile and contains no real Instagram credentials or account data. This is a frontend check, not a real Meta delivery test.
+
+UI-only refinements following the full platform run are rebuilt separately; the Rust delivery logic is unchanged.
+
 ## Physical Windows laptop limitation
 
 The downloaded Windows artifact's checksum was verified. Starting it on the owner's laptop was blocked by Windows Application Control (error 4551; Code Integrity event 3077). Smart App Control is enabled. Local compiler build helpers were blocked by the same mechanism. Windows Subsystem for Linux is not installed.

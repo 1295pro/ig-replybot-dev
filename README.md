@@ -4,6 +4,10 @@ Turn an Instagram comment into a public reply and a DM. Connect your account, ch
 
 [Download the app](https://github.com/1295pro/ig-replybot-dev/releases/latest) · [Setup guide](docs/USER_GUIDE.md) · [Quick start](docs/QUICK_START.md) · [MIT license](LICENSE)
 
+![IG Reply Bot control room in Self-hosted mode](docs/images/control-room.jpg)
+
+*Example profile shown in the control room.*
+
 ## Start on your computer
 
 1. Download the ZIP for your operating system from **Releases** and extract it.
