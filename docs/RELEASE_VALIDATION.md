@@ -24,13 +24,19 @@ The existing VPS was updated to the same application version. Its container is h
 
 The current HTML was also exercised in a browser against a loopback fixture with sample data. Automatic fragment sign-in removed the fragment from the address bar, the VPS installer appeared only in VPS mode, unsaved trigger text survived a real 20-second background-refresh interval, and saving updated the visible trigger. The README screenshot uses this sample profile and contains no real Instagram credentials or account data. This is a frontend check, not a real Meta delivery test.
 
-UI-only refinements following the full platform run are rebuilt separately; the Rust delivery logic is unchanged.
+[UI-only rebuild 42326627016](https://github.com/1295pro/ig-replybot-dev/actions/runs/42326627016) successfully built and smoke-tested all four platform packages from `e76d86b`. Formatting and the full Linux CI also passed for that source. The Rust delivery logic is unchanged from the full four-platform test run.
 
 ## Physical Windows laptop limitation
 
 The downloaded Windows artifact's checksum was verified. Starting it on the owner's laptop was blocked by Windows Application Control (error 4551; Code Integrity event 3077). Smart App Control is enabled. Local compiler build helpers were blocked by the same mechanism. Windows Subsystem for Linux is not installed.
 
-The app is currently unsigned. See the [documented launch limitation](USER_GUIDE.md#windows-launch-limitation) and [Microsoft's guidance](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions). No Windows protection setting was changed. The VPS bot remains running.
+The app is currently unsigned. See the [documented launch limitation](USER_GUIDE.md#windows-launch-limitation) and [Microsoft's guidance](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions). After explicitly authorizing the change, the owner turned Smart App Control off through Windows Security. Its state was read back as Off, and the downloaded executable then ran successfully. The launcher itself does not change security settings.
+
+## Physical laptop startup verified
+
+The latest Windows package from `e76d86b` starts on the laptop, opens the real browser, signs in automatically, and displays the connected account. The clean profile initially had no account and automation was paused. The token and reply settings were saved through the same authenticated HTTP API used by the UI; no environment file was created or edited. Polling without a webhook completed its initial baseline of 81 comments and reported healthy.
+
+For the real delivery test, the VPS container was explicitly stopped and verified exited before enabling the local bot. The local queue initially had zero completed deliveries. A fresh trigger comment from a different account is still required.
 
 ## Remaining acceptance gate
 

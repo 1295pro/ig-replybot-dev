@@ -1,4 +1,4 @@
-Draft: the real laptop-to-Instagram acceptance test is pending because Smart App Control blocks the unsigned Windows executable on the test laptop. Automated desktop checks pass on all four build platforms. See docs/RELEASE_VALIDATION.md.
+Draft: automated desktop checks pass on all four platforms. Real startup, account connection, and polling work on the test laptop after the owner disabled Smart App Control. The fresh-comment acceptance test is awaiting the operator. See docs/RELEASE_VALIDATION.md.
 
 IG Reply Bot brings comment-to-DM automation to a browser control room.
 

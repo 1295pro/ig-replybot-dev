@@ -72,7 +72,7 @@ The installer runs from the local control room on your computer. It supports roo
 6. Confirm the installation plan, then select **Deploy and run checks**. Docker is installed if needed. The installer builds a separate container and checks the first successful Meta poll.
 7. Use the displayed SSH tunnel command and open the private admin URL. Leave a new trigger comment from another account and confirm both replies.
 
-After deployment, the server keeps running when your laptop is closed. VPS mode shows the saved address and panel port. **Change VPS** leads to the local installer; pause the old copy before starting a new one. A new deployment has a separate database and does not migrate history.
+After deployment, the server keeps running when your laptop is closed. VPS mode shows the saved address and panel port. **Change VPS** leads to the local installer; pause the old copy before starting a new one. A new deployment has a separate database and does not migrate history. Keep the previous copy paused after moving: resuming an older database can process comments already handled by the newer installation.
 
 The wizard creates a new `/opt/ig-reply-bot-<id>` folder and Compose project. It does not upgrade/remove an existing bot or edit your firewall, DNS, proxy, or existing containers. The root SSH password is used for the request and not stored. The VPS `runtime.env` contains the bot credentials and panel password, readable by root/Docker. Its panel port binds to VPS loopback and is opened through the supplied SSH tunnel.
 
