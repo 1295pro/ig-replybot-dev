@@ -2,6 +2,7 @@ mod admin;
 mod config;
 mod deploy;
 mod domain;
+mod local;
 mod meta_api;
 mod poller;
 mod storage;
@@ -22,19 +23,88 @@ async fn main() {
     unsafe {
         libc::umask(0o077);
     }
-    // Keep process environment values authoritative, then use the local file
+    let args: Vec<_> = std::env::args().skip(1).collect();
+    if args == ["--help"] {
+        println!(
+            "IG Reply Bot\n\n--local                 Open the local control room; no environment file needed\n--data-dir PATH         Local data folder (requires --local)\n--no-browser            Start locally without opening a browser\n--version               Show the version\n\nNo arguments: run as a service using environment configuration."
+        );
+        return;
+    }
+    if args == ["--version"] {
+        println!("IG Reply Bot {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+    let mut local_mode = false;
+    let mut open_browser = true;
+    let mut directory = None;
+    let mut arguments = args.iter();
+    while let Some(argument) = arguments.next() {
+        match argument.as_str() {
+            "--local" => local_mode = true,
+            "--no-browser" => open_browser = false,
+            "--data-dir" => {
+                let Some(path) = arguments.next().filter(|path| !path.starts_with("--")) else {
+                    eprintln!("--data-dir requires a folder path");
+                    std::process::exit(2);
+                };
+                directory = Some(std::path::PathBuf::from(path));
+            }
+            _ => {
+                eprintln!("Unknown argument: {argument}. Use --help for launch options.");
+                std::process::exit(2);
+            }
+        }
+    }
+    if !local_mode && !args.is_empty() {
+        eprintln!("--data-dir and --no-browser require --local");
+        std::process::exit(2);
+    }
+    let local_launch = local_mode.then(|| {
+        local::LocalLaunch::prepare(directory, open_browser).unwrap_or_else(|error| {
+            eprintln!("local startup error: {error}");
+            std::process::exit(2);
+        })
+    });
+    // Service mode supports existing environment-based installations.
     // and fill any missing values from the conventional .env file.
-    if Path::new(".env.local").exists() && dotenvy::from_filename(".env.local").is_err() {
+    if !local_mode
+        && Path::new(".env.local").exists()
+        && dotenvy::from_filename(".env.local").is_err()
+    {
         eprintln!(
             "Invalid .env.local: quote text values that contain spaces or special characters"
         );
         std::process::exit(2);
     }
-    dotenvy::dotenv().ok();
-    let mut config = Config::from_env().unwrap_or_else(|error| {
-        eprintln!("configuration error: {error}");
-        std::process::exit(2);
-    });
+    if !local_mode {
+        dotenvy::dotenv().ok();
+    }
+    let mut config = local_launch
+        .as_ref()
+        .map_or_else(Config::from_env, |local| Ok(local.config()))
+        .unwrap_or_else(|error| {
+            eprintln!("configuration error: {error}");
+            std::process::exit(2);
+        });
+    // Bind before touching SQLite: a second launch must not recover the active
+    // instance's delivery queue or alter its persisted settings.
+    let address = config.bind_addr;
+    let listener = match tokio::net::TcpListener::bind(address).await {
+        Ok(listener) => listener,
+        Err(error) => {
+            if let Some(local) = &local_launch
+                && local.already_running().await
+            {
+                local.open();
+                eprintln!("IG Reply Bot is already running. Opened its control room.");
+                return;
+            }
+            eprintln!(
+                "Cannot open {address}: {error}. Close the program using that port and try again."
+            );
+            std::process::exit(2);
+        }
+    };
     let database = Arc::new(
         Database::open(&config.database_path).unwrap_or_else(|error| {
             eprintln!("database error: {error}");
@@ -81,7 +151,6 @@ async fn main() {
         config.automation_enabled = false;
     }
     let config = Arc::new(config);
-    let address = config.bind_addr;
 
     let state = AppState::new(config.clone(), database.clone());
     tokio::spawn(worker::run(state.config_updates(), database.clone()));
@@ -93,12 +162,10 @@ async fn main() {
     eprintln!("IG Reply Bot admin panel available at http://127.0.0.1:3000/");
 
     let app = router(state);
-    let listener = tokio::net::TcpListener::bind(address)
-        .await
-        .unwrap_or_else(|error| {
-            eprintln!("failed to bind HTTP listener: {error}");
-            std::process::exit(2);
-        });
+    if let Some(local) = &local_launch {
+        eprintln!("Local app data: {}", local.directory.display());
+        local.open();
+    }
 
     eprintln!("listening on {address}");
     axum::serve(

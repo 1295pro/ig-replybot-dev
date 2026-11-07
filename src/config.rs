@@ -45,7 +45,7 @@ impl Config {
         let database_path = env::var_os("IG_DATABASE_PATH")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("ig_reply_bot.sqlite3"));
-        let keyword = env::var("IG_KEYWORD").unwrap_or_else(|_| "бот".to_owned());
+        let keyword = env::var("IG_KEYWORD").unwrap_or_else(|_| "bot".to_owned());
         if keyword.trim().is_empty() {
             return Err("IG_KEYWORD must not be empty".to_owned());
         }

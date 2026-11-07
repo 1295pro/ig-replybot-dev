@@ -1125,10 +1125,11 @@ dependencies = [
 
 [[package]]
 name = "ig-reply-bot"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "axum",
  "dotenvy",
+ "getrandom 0.4.3",
  "hex",
  "hmac",
  "libc",

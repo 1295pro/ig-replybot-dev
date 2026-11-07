@@ -1,0 +1,103 @@
+name: Desktop release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            platform: windows-x64
+            binary: ig-reply-bot.exe
+          - runner: ubuntu-24.04
+            platform: linux-x64
+            binary: ig-reply-bot
+          - runner: macos-15
+            platform: macos-apple-silicon
+            binary: ig-reply-bot
+          - runner: macos-15-intel
+            platform: macos-intel
+            binary: ig-reply-bot
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Install Rust check components
+        run: rustup component add clippy rustfmt
+      - name: Formatting
+        run: cargo fmt --all -- --check
+      - name: Lint
+        run: cargo clippy --release --locked --all-targets -- -D warnings
+      - name: Unit and API tests
+        run: cargo test --release --locked
+      - name: Build app
+        run: cargo build --release --locked
+      - name: Clean desktop lifecycle
+        run: python scripts/smoke-local.py target/release/${{ matrix.binary }}
+      - name: Package executable and launchers
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          BINARY: ${{ matrix.binary }}
+        run: |
+          python - <<'PY'
+          import hashlib, os, pathlib, shutil, zipfile
+          out = pathlib.Path('dist')
+          package = out / ('ig-reply-bot-' + os.environ['PLATFORM'])
+          package.mkdir(parents=True)
+          shutil.copy2('target/release/' + os.environ['BINARY'], package)
+          for file in ('README.md', 'LICENSE'):
+              shutil.copy2(file, package)
+          shutil.copytree('docs', package / 'docs')
+          (package / 'deploy').mkdir()
+          for file in pathlib.Path('deploy').glob('*.md'):
+              shutil.copy2(file, package / 'deploy')
+          if os.environ['PLATFORM'].startswith('windows'):
+              shutil.copy2('start-local.cmd', package)
+              (package / 'scripts').mkdir()
+              shutil.copy2('scripts/start-local.ps1', package / 'scripts')
+          else:
+              launcher = package / ('start-local.command' if os.environ['PLATFORM'].startswith('macos') else 'start-local.sh')
+              shutil.copy2('start-local.sh', launcher)
+              launcher.chmod(0o755)
+              (package / os.environ['BINARY']).chmod(0o755)
+          archive = out / (package.name + '.zip')
+          with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as zip:
+              for file in sorted(package.rglob('*')):
+                  if file.is_file(): zip.write(file, file.relative_to(out))
+          digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+          (out / (archive.name + '.sha256')).write_text(digest + '  ' + archive.name + '\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ig-reply-bot-${{ matrix.platform }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+
+  draft:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Prepare draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ github.ref_name }}
+        run: gh release create "$VERSION" dist/* --verify-tag --draft --title "IG Reply Bot $VERSION" --notes-file RELEASE_NOTES.md

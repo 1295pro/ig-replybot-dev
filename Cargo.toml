@@ -1,11 +1,12 @@
 [package]
 name = "ig-reply-bot"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 
 [dependencies]
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
 dotenvy = "0.15"
+getrandom = "0.4"
 hex = "0.4"
 hmac = "0.13"
 libc = "0.2"

@@ -26,7 +26,7 @@
 ## Trust boundaries and secrets
 
 - The service accepts webhook events only when their HMAC signature matches the configured Meta app secret.
-- The browser control room and its JSON endpoints require `IG_ADMIN_PASSWORD`. The page stores it in browser session storage only. Use the panel locally or through an SSH tunnel.
+- The browser control room and its JSON endpoints require a bearer password. Desktop local mode generates it in the user data folder; service mode reads `IG_ADMIN_PASSWORD`. The local launcher passes it through a URL fragment, which the page removes immediately and stores in browser session storage. Use the panel locally or through an SSH tunnel.
 - Access tokens, app secrets, and webhook settings saved in the control room are stored unencrypted in the SQLite database. On Unix, the database file is set to mode `0600`; the process and systemd unit use umask `0077`. Keep database backups private. The admin API never returns secrets or writes them to logs.
 - The VPS installer is available only from a loopback-bound control room and accepts loopback peers. It first reads the SSH host key without sending the password; authenticated SSH and SFTP connections require that exact SHA-256 fingerprint. It runs fixed installer commands and uploads an allowlisted source manifest, never the local environment file, database, or Git directory.
 - The installer keeps the root SSH password in memory for the request and does not persist it. It writes the Instagram token, Meta settings, and new VPS admin password into a root-owned `runtime.env` file with mode `0600`; these values are not encrypted at rest and remain visible to VPS root and the Docker daemon. The admin listener is published on VPS loopback and should be reached over SSH forwarding.
@@ -42,7 +42,9 @@ The **Deploy to VPS** flow takes the saved account and reply configuration from 
 
 ## Configuration precedence
 
-Process environment values take precedence over `.env.local`; `.env.local` takes precedence over `.env`. Missing values in one file may be supplied by the next source. The repository template is `.env.example` and contains placeholders only.
+Desktop `--local` mode uses its user data folder and generated password. It ignores project environment files. Account and reply settings come from the control room and SQLite. A second launch verifies the existing instance before opening its panel and never opens its database.
+
+Service mode: Process environment values take precedence over `.env.local`; `.env.local` takes precedence over `.env`. Missing values in one file may be supplied by the next source. The repository template is `.env.example` and contains placeholders only.
 
 ## Release checks
 

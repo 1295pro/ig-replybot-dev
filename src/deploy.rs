@@ -33,6 +33,7 @@ const DEPLOY_FILES: &[(&str, &[u8])] = &[
         include_bytes!("../deploy/compose.yaml"),
     ),
     ("src/main.rs", include_bytes!("main.rs")),
+    ("src/local.rs", include_bytes!("local.rs")),
     ("src/admin.rs", include_bytes!("admin.rs")),
     ("src/config.rs", include_bytes!("config.rs")),
     ("src/deploy.rs", include_bytes!("deploy.rs")),
