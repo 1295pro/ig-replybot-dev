@@ -1,6 +1,6 @@
 # Release validation — 2026-11-07
 
-Status: candidate prepared; real laptop-to-Instagram acceptance remains pending.
+Status: real laptop-to-Instagram acceptance passed; release prepared for publication.
 
 ## Verified
 
@@ -36,10 +36,18 @@ The app is currently unsigned. See the [documented launch limitation](USER_GUIDE
 
 The latest Windows package from `e76d86b` starts on the laptop, opens the real browser, signs in automatically, and displays the connected account. The clean profile initially had no account and automation was paused. The token and reply settings were saved through the same authenticated HTTP API used by the UI; no environment file was created or edited. Polling without a webhook completed its initial baseline of 81 comments and reported healthy.
 
-For the real delivery test, the VPS container was explicitly stopped and verified exited before enabling the local bot. The local queue initially had zero completed deliveries. A fresh trigger comment from a different account is still required.
+For the real delivery test, the VPS container was explicitly stopped and verified exited before enabling the local bot. The local queue initially had zero completed deliveries. A fresh trigger comment from a different account was then processed successfully.
 
-## Remaining acceptance gate
+## Real delivery acceptance passed
 
-Run the candidate in a permitted local environment. Pause/stop the VPS bot, connect the account through the local control room, save the replies, and enable local polling. After the baseline succeeds, a different Instagram account must leave a new trigger comment. Verify a completed public reply plus private reply in the local queue and confirm the received DM. Pause the local copy and restore the server afterward.
+The owner left a fresh exact-trigger comment from another Instagram account and reported receiving the reply. During that delivery, the VPS bot container was verified `exited`. The local instance had no VPS deployment and no webhook configured; it used outbound polling only.
 
-Publishing the release and opening repository access should follow this acceptance step. The repository is currently private.
+The local SQLite queue changed from zero to one completed job. Its public reply and private reply both had status `sent`, the control-room API reported `live_test_passed=true`, and there were no pending or attention-required deliveries. A read through Meta's API independently confirmed exactly one public reply with the configured text.
+
+After the test, local automation was paused and its process closed. The successful delivery record and seen-comment history were reconciled into the stopped VPS database after a private SQLite backup, preventing polling or webhook retries from answering the same test comment again. The server was restarted and enabled; it reports healthy polling, zero pending deliveries, and zero jobs needing attention. Its two completed records include the earlier server delivery and the transferred local test record. Meta still showed exactly one matching public reply after restoration.
+
+The local profile retains its account, reply rules, test result, and paused automation state for the next launch. Browser automation stopped before capturing a final Passed screenshot because it could not reliably identify the Windows browser URL; the result was verified through the actual API, SQLite state, Meta, and the owner's response instead.
+
+## Publication
+
+The code, English UI documentation, ready-to-run ZIPs, checksums, and draft release are prepared. Publishing the release and making the currently private repository public await the owner's approval. Windows packages remain unsigned; the Smart App Control limitation is documented for other users.

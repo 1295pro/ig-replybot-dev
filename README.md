@@ -53,4 +53,4 @@ cargo run --release --locked -- --local
 
 Windows users can also double-click `start-local.cmd` in the source folder. Building on Windows requires the Microsoft C++ build tools requested by Rust. Ready-to-run release downloads include the compiled app.
 
-[Developer and manual service reference](docs/ADVANCED.md) · [Architecture](docs/ARCHITECTURE.md) · [File map](docs/USER_GUIDE.md#file-map)
+[Developer and manual service reference](docs/ADVANCED.md) · [Architecture](docs/ARCHITECTURE.md) · [Validation report](docs/RELEASE_VALIDATION.md) · [File map](docs/USER_GUIDE.md#file-map)

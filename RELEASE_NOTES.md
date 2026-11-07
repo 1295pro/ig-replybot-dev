@@ -1,6 +1,6 @@
-Draft: automated desktop checks pass on all four platforms. Real startup, account connection, and polling work on the test laptop after the owner disabled Smart App Control. The fresh-comment acceptance test is awaiting the operator. See docs/RELEASE_VALIDATION.md.
-
 IG Reply Bot brings comment-to-DM automation to a browser control room.
+
+Validated with 25 automated tests, platform startup checks on Windows/Linux/macOS, browser interface checks, and a real Instagram public-reply + DM test running exclusively on a laptop while the VPS bot was stopped. See docs/RELEASE_VALIDATION.md for scope and operating limits.
 
 - Connect your own Instagram Business or Creator account using a Meta access token.
 - Set a trigger word, public reply, and DM in the interface.
