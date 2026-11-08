@@ -92,11 +92,11 @@ The wizard creates a new `/opt/ig-reply-bot-<id>` folder and Compose project. It
 
 ### Open the VPS control room again
 
-Start the SSH tunnel from your computer and keep it open while you use the panel. The Docker installer uses port 12950 on the VPS by default. In this example, the tunnel forwards port 29950 on your computer to that port on the VPS:
+For an existing VPS installation, use the SSH command shown at the end of deployment. If you used the default private panel port, this command opens the VPS panel on port 12950 on your computer:
 
-    ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:29950:127.0.0.1:12950 root@YOUR-VPS
+    ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:12950:127.0.0.1:12950 root@YOUR-VPS
 
-Replace `YOUR-VPS` with the server address and `12950` with the private panel port you chose during deployment. Add `-p YOUR-SSH-PORT` if SSH uses a port other than `22`. Open `http://127.0.0.1:29950/` and sign in with the VPS panel password. If `29950` is already in use on your computer, change the first port in the command and use the same port in your browser.
+Replace `YOUR-VPS` with the server address. If you chose a different private panel port during deployment, use it in both places in the command and in the browser address. Add `-p YOUR-SSH-PORT` if SSH uses a port other than `22`. Keep the tunnel open, visit `http://127.0.0.1:12950/`, and sign in with the VPS panel password.
 
 The desktop launcher opens your computer's bot at `http://127.0.0.1:3000/`. The panel through the tunnel controls the bot on the VPS. To return to an existing installation, reuse the tunnel. **Deploy and run checks** starts a new installation.
 
