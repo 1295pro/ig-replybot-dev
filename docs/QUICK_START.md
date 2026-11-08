@@ -3,7 +3,7 @@
 Use this short route if you already have an Instagram access token. If you are creating a Meta app or need a website for its policy links, start with the [full setup guide](USER_GUIDE.md).
 
 1. [Download the release ZIP](https://github.com/1295pro/ig-replybot-dev/releases/latest) for your computer and extract it.
-2. Open `start-local.cmd` on Windows, `start-local.command` on macOS, or `./start-local.sh` on Linux.
+2. Open `ig-reply-bot.exe` on Windows, `start-local.command` on macOS, or `./start-local.sh` on Linux.
 3. The browser opens the control room and signs you in. New installations start paused.
 4. Open **Connect Instagram**, paste your token, and select **Verify and connect**.
 5. Choose your trigger word and write the public reply and DM. Select **Save reply rules**.

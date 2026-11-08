@@ -36,10 +36,15 @@ pub struct AppState {
     database: Arc<Database>,
     poll_last_success: Arc<AtomicU64>,
     vps_tunnel: Arc<Mutex<Option<(DeploymentTarget, VpsTunnel)>>>,
+    server_deployment: Option<DeploymentTarget>,
 }
 
 impl AppState {
-    pub fn new(config: Arc<Config>, database: Arc<Database>) -> Self {
+    pub fn new(
+        config: Arc<Config>,
+        database: Arc<Database>,
+        server_deployment: Option<DeploymentTarget>,
+    ) -> Self {
         let (config, config_updates) = watch::channel(config);
         Self {
             config,
@@ -47,6 +52,7 @@ impl AppState {
             database,
             poll_last_success: Arc::new(AtomicU64::new(0)),
             vps_tunnel: Arc::new(Mutex::new(None)),
+            server_deployment,
         }
     }
 
@@ -60,6 +66,13 @@ impl AppState {
 
     pub fn database(&self) -> &Arc<Database> {
         &self.database
+    }
+
+    pub fn deployment_target(&self) -> Result<Option<DeploymentTarget>, String> {
+        match &self.server_deployment {
+            Some(target) => Ok(Some(target.clone())),
+            None => self.database.load_deployment_target(),
+        }
     }
 
     pub fn config(&self) -> Arc<Config> {
@@ -453,7 +466,7 @@ mod tests {
             private_reply_text: "message".into(),
         });
         let database = Arc::new(Database::open(&config.database_path).unwrap());
-        let state = AppState::new(config, database.clone());
+        let state = AppState::new(config, database.clone(), None);
         let mut headers = HeaderMap::new();
         headers.insert(
             "x-hub-signature-256",
@@ -485,7 +498,7 @@ mod tests {
             private_reply_text: "message".into(),
         });
         let database = Arc::new(Database::open(&config.database_path).unwrap());
-        let state = AppState::new(config, database);
+        let state = AppState::new(config, database, None);
         let response = ready(State(state.clone())).await.into_response();
         assert_eq!(
             response.status(),

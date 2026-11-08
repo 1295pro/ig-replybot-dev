@@ -12,7 +12,7 @@ cargo build --release --locked
 cargo run --release --locked -- --local
 ```
 
-Use `--local --no-browser --data-dir PATH` for an isolated local profile. Local mode uses a generated password and the selected user data folder; it does not import project environment files. It binds to `127.0.0.1:3000`. No arguments starts service mode.
+Use `--local --no-browser --data-dir PATH` for an isolated local profile. Desktop mode uses the selected user data folder and binds to `127.0.0.1:3000`. The packaged executable opens in desktop mode by default. Use `--service` to run it with environment configuration. Source builds and the Docker image default to service mode.
 
 ## Existing service configuration
 

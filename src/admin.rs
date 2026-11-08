@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::Sha256;
 use std::{
-    env,
     net::SocketAddr,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -277,7 +276,7 @@ async fn status(State(state): State<AppState>, headers: HeaderMap) -> Response {
         Ok(saved) => saved,
         Err(error) => return error_response(StatusCode::SERVICE_UNAVAILABLE, error),
     };
-    let deployment = match state.database().load_deployment_target() {
+    let deployment = match state.deployment_target() {
         Ok(target) => target,
         Err(error) => return error_response(StatusCode::SERVICE_UNAVAILABLE, error),
     };
@@ -306,22 +305,6 @@ async fn status(State(state): State<AppState>, headers: HeaderMap) -> Response {
         None => false,
     };
     let rules_configured = rules_configured(&config, connected, settings_saved, live_test_passed);
-    let deployment = env::var("IG_DEPLOY_HOST")
-        .ok()
-        .filter(|host| !host.trim().is_empty())
-        .map(|host| DeploymentTarget {
-            host,
-            ssh_port: env::var("IG_DEPLOY_SSH_PORT")
-                .ok()
-                .and_then(|value| value.parse().ok())
-                .unwrap_or(22),
-            service_port: env::var("IG_DEPLOY_SERVICE_PORT")
-                .ok()
-                .and_then(|value| value.parse().ok())
-                .unwrap_or(12950),
-            host_fingerprint: None,
-        })
-        .or(deployment);
     let configured = json!({
         "connected": connected,
         "app_secret": !config.app_secret.is_empty(),

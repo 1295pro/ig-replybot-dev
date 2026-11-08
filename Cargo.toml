@@ -1,7 +1,10 @@
 [package]
 name = "ig-reply-bot"
-version = "1.0.4"
+version = "1.0.5"
 edition = "2024"
+
+[features]
+desktop-default = []
 
 [dependencies]
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }

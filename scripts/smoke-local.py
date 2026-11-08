@@ -10,7 +10,9 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
-binary = Path(sys.argv[1]).resolve()
+desktop_default = "--desktop-default" in sys.argv[1:]
+binary = Path(sys.argv[-1]).resolve()
+local_mode = [] if desktop_default else ["--local"]
 base = "http://127.0.0.1:3000"
 
 
@@ -38,8 +40,9 @@ with tempfile.TemporaryDirectory(prefix="ig-desktop-smoke-") as folder:
     profile = cwd / "profile"
     # Local mode must not depend on a project environment file or variable.
     (cwd / ".env.local").write_text("INVALID ' dotenv file", encoding="utf-8")
-    env = dict(os.environ, IG_REPLY_BIND_ADDR="invalid", IG_ADMIN_PASSWORD="invalid")
-    command = [str(binary), "--local", "--no-browser", "--data-dir", str(profile)]
+    env = dict(os.environ, IG_REPLY_BIND_ADDR="invalid", IG_ADMIN_PASSWORD="invalid",
+               IG_DEPLOY_HOST="unrelated-vps.example", IG_DEPLOY_SERVICE_PORT="12951")
+    command = [str(binary), *local_mode, "--no-browser", "--data-dir", str(profile)]
 
     def start():
         process = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.DEVNULL,
@@ -66,6 +69,8 @@ with tempfile.TemporaryDirectory(prefix="ig-desktop-smoke-") as folder:
         assert status["keyword"] == "bot"
         assert status["automation_enabled"] is False
         assert status["configured"]["connected"] is False
+        assert status["deployment"] is None, "Clean desktop profile inherited a VPS address"
+        assert status["vps_panel_url"] is None
         assert request("/api/admin/status")[0] == 401
         assert request("/api/admin/status", "wrong-password")[0] == 401
         settings = dict(keyword="hello", public_reply_text="Public smoke reply",
@@ -77,7 +82,7 @@ with tempfile.TemporaryDirectory(prefix="ig-desktop-smoke-") as folder:
         assert second.returncode == 0, "Second launch did not reopen the existing app"
         assert process.poll() is None
         other = cwd / "other-profile"
-        conflict = subprocess.run([str(binary), "--local", "--no-browser", "--data-dir", str(other)],
+        conflict = subprocess.run([str(binary), *local_mode, "--no-browser", "--data-dir", str(other)],
                                   cwd=cwd, env=env, capture_output=True, timeout=10)
         assert conflict.returncode != 0
         assert not (other / "bot.sqlite3").exists(), "Port conflict touched a second database"
@@ -93,7 +98,7 @@ with tempfile.TemporaryDirectory(prefix="ig-desktop-smoke-") as folder:
         assert status["live_test_passed"] is False
     finally:
         stop(process)
-    missing_path = subprocess.run([str(binary), "--local", "--data-dir"],
+    missing_path = subprocess.run([str(binary), *local_mode, "--data-dir"],
                                   capture_output=True, timeout=10)
     assert missing_path.returncode == 2
 print("PASS: clean startup, authenticated panel, settings, restart, relaunch, port conflict, no-account guard")

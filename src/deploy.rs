@@ -1,4 +1,5 @@
 use std::{
+    env,
     net::Ipv4Addr,
     sync::{Arc, Mutex},
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -19,7 +20,7 @@ use tokio::{
 };
 use zeroize::Zeroizing;
 
-use crate::config::Config;
+use crate::{config::Config, storage::DeploymentTarget};
 
 const DEPLOY_FILES: &[(&str, &[u8])] = &[
     ("Cargo.toml", include_bytes!("../Cargo.toml")),
@@ -217,6 +218,25 @@ struct CommandOutput {
     code: u32,
     stdout: String,
     stderr: String,
+}
+
+pub fn service_deployment_target() -> Option<DeploymentTarget> {
+    let host = env::var("IG_DEPLOY_HOST").ok()?;
+    if host.trim().is_empty() {
+        return None;
+    }
+    Some(DeploymentTarget {
+        host,
+        ssh_port: env::var("IG_DEPLOY_SSH_PORT")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(22),
+        service_port: env::var("IG_DEPLOY_SERVICE_PORT")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(12950),
+        host_fingerprint: None,
+    })
 }
 
 pub async fn inspect_host(connection: &ConnectionInput) -> Result<String, String> {

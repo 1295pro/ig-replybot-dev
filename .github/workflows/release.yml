@@ -48,14 +48,14 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Lint
         if: github.event_name != 'workflow_dispatch' || inputs.verify
-        run: cargo clippy --release --locked --target ${{ matrix.target }} --all-targets -- -D warnings
+        run: cargo clippy --release --locked --features desktop-default --target ${{ matrix.target }} --all-targets -- -D warnings
       - name: Unit and API tests
         if: github.event_name != 'workflow_dispatch' || inputs.verify
-        run: cargo test --release --locked --target ${{ matrix.target }}
+        run: cargo test --release --locked --features desktop-default --target ${{ matrix.target }}
       - name: Build app
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        run: cargo build --release --locked --features desktop-default --target ${{ matrix.target }}
       - name: Clean desktop lifecycle
-        run: python scripts/smoke-local.py target/${{ matrix.target }}/release/${{ matrix.binary }}
+        run: python scripts/smoke-local.py --desktop-default target/${{ matrix.target }}/release/${{ matrix.binary }}
       - name: Package executable and launchers
         shell: bash
         env:

@@ -15,11 +15,11 @@ Both modes use the same control room and reply rules. The **VPS / Self-hosted** 
 
 Download and extract your operating system's ZIP from [Releases](https://github.com/1295pro/ig-replybot-dev/releases/latest).
 
-- **Windows x64:** open `start-local.cmd`.
+- **Windows x64:** open `ig-reply-bot.exe`.
 - **macOS 12+:** open `start-local.command` from the ZIP matching your Mac (Apple Silicon or Intel).
 - **Linux x64 (glibc 2.39+, such as Ubuntu 24.04+):** run `./start-local.sh` in the extracted folder.
 
-The packaged apps include the executable. The first launch creates a private panel password and opens `http://127.0.0.1:3000/` with automatic sign-in. New installations start paused. Subsequent launches reuse your settings; opening the launcher again while the app is running reopens its panel.
+The first launch creates a private panel password and opens `http://127.0.0.1:3000/` with automatic sign-in. A new profile starts paused, with no Instagram account or VPS connected. Reopening the app uses the profile already saved on that computer.
 
 The builds are unsigned. macOS may require approval before opening them; Windows Smart App Control can block them entirely. Download only from this repository's releases. Use the included SHA256 checksums to verify a download if needed.
 
@@ -106,7 +106,7 @@ Local app data stays outside the download folder:
 | macOS | `~/Library/Application Support/IG Reply Bot` |
 | Linux | `$XDG_DATA_HOME/ig-reply-bot`, or `~/.local/share/ig-reply-bot` |
 
-`bot.sqlite3` contains the connected account token, reply rules, other saved secrets, seen comment IDs, and delivery status. `admin-password.txt` contains your generated panel password. These files are not encrypted at rest. The browser receives the password in a URL fragment, stores it for the tab's session, and immediately removes the fragment from the address bar; it is not sent in an HTTP request.
+`bot.sqlite3` contains the connected account token, reply rules, seen comment IDs, delivery status, and any saved VPS address and fingerprint. `admin-password.txt` contains the generated password for your desktop panel. These files are not encrypted at rest. The desktop panel signs you in for the browser tab's session. SSH passwords are used for the connection, and the VPS panel has its own password.
 
 To back up or move a laptop installation, stop the app and copy the entire app data folder. Preserve both files and any SQLite sidecar files. To update, stop the app, replace the extracted release files, and start it again. App data remains in the same user folder. A source/service installation using `.env.local` is a separate mode; follow [the advanced reference](ADVANCED.md) when migrating it.
 

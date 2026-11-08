@@ -1,6 +1,6 @@
 # IG Reply Bot
 
-IG Reply Bot watches comments on one Instagram Business or Creator account. When a new comment matches your trigger, it posts your public reply and sends your DM. You set it up in a browser; it can run on your computer or on a VPS.
+IG Reply Bot is a self-hosted, open-source app for one Instagram Business or Creator account. When a new comment matches your trigger, it posts your public reply and sends a DM. Run it on your computer or your VPS and connect it to your own Meta app.
 
 [Download the latest version](https://github.com/1295pro/ig-replybot-dev/releases/latest) · [Quick start](docs/QUICK_START.md) · [Full setup guide](docs/USER_GUIDE.md) · [MIT license](LICENSE)
 
@@ -10,7 +10,7 @@ IG Reply Bot watches comments on one Instagram Business or Creator account. When
 ## Get started
 
 1. Download the ZIP for your operating system from **Releases** and extract it.
-2. On Windows, double-click **start-local.cmd**. On macOS, open **start-local.command**. On Linux, run **./start-local.sh**.
+2. On Windows, open **ig-reply-bot.exe**. On macOS, open **start-local.command**. On Linux, run **./start-local.sh**.
 3. The control room opens in your browser and signs you in automatically.
 4. Connect Instagram using an access token from your own Meta app.
 5. Save your trigger word, public reply, and private message. Choose **Self-hosted** to keep the bot on this computer.
@@ -44,7 +44,7 @@ The installer supports Ubuntu/Debian on x64 or ARM64. It creates a separate Dock
 
 ## Your data
 
-Settings survive app restarts in your user data folder. The app uses Meta's official API and keeps your token, reply settings, comment IDs, and delivery status on the computer or VPS running it. Tokens and saved secrets are not encrypted at rest. Keep that device and its backups private.
+The archive contains the app and guides. A new profile starts empty. Settings are saved on the computer or VPS running your bot. The desktop app remembers your VPS address and verified fingerprint. It asks for the SSH password again when you reconnect after a restart. Tokens and saved secrets are not encrypted at rest, so keep your bot's device and backups private.
 
 Meta controls account eligibility, token expiration, permissions, API limits, and message delivery. Tokens currently need manual renewal. Each instance handles one Instagram account. Failed or uncertain message deliveries are shown for review rather than automatically resent.
 

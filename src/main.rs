@@ -26,7 +26,12 @@ async fn main() {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args == ["--help"] {
         println!(
-            "IG Reply Bot\n\n--local                 Open the local control room; no environment file needed\n--data-dir PATH         Local data folder (requires --local)\n--no-browser            Start locally without opening a browser\n--version               Show the version\n\nNo arguments: run as a service using environment configuration."
+            "IG Reply Bot\n\n--local                 Open the local control room\n--service               Run with environment configuration\n--data-dir PATH         Use a different desktop data folder\n--no-browser            Start locally without opening a browser\n--version               Show the version\n\nDefault mode: {}.",
+            if cfg!(feature = "desktop-default") {
+                "desktop"
+            } else {
+                "service"
+            }
         );
         return;
     }
@@ -34,13 +39,18 @@ async fn main() {
         println!("IG Reply Bot {}", env!("CARGO_PKG_VERSION"));
         return;
     }
-    let mut local_mode = false;
+    let mut selected_mode = None;
     let mut open_browser = true;
     let mut directory = None;
     let mut arguments = args.iter();
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
-            "--local" => local_mode = true,
+            "--local" | "--service" => {
+                if selected_mode.replace(argument == "--local").is_some() {
+                    eprintln!("Choose one launch mode: --local or --service");
+                    std::process::exit(2);
+                }
+            }
             "--no-browser" => open_browser = false,
             "--data-dir" => {
                 let Some(path) = arguments.next().filter(|path| !path.starts_with("--")) else {
@@ -55,8 +65,9 @@ async fn main() {
             }
         }
     }
-    if !local_mode && !args.is_empty() {
-        eprintln!("--data-dir and --no-browser require --local");
+    let local_mode = selected_mode.unwrap_or(cfg!(feature = "desktop-default"));
+    if !local_mode && (directory.is_some() || !open_browser) {
+        eprintln!("--data-dir and --no-browser require desktop mode");
         std::process::exit(2);
     }
     let local_launch = local_mode.then(|| {
@@ -152,14 +163,19 @@ async fn main() {
     }
     let config = Arc::new(config);
 
-    let state = AppState::new(config.clone(), database.clone());
+    let server_deployment = if local_mode {
+        None
+    } else {
+        deploy::service_deployment_target()
+    };
+    let state = AppState::new(config.clone(), database.clone(), server_deployment);
     tokio::spawn(worker::run(state.config_updates(), database.clone()));
     tokio::spawn(poller::run(
         state.config_updates(),
         database.clone(),
         state.poll_health(),
     ));
-    eprintln!("IG Reply Bot admin panel available at http://127.0.0.1:3000/");
+    eprintln!("IG Reply Bot admin panel listening on {address}");
 
     let app = router(state);
     if let Some(local) = &local_launch {
@@ -167,7 +183,6 @@ async fn main() {
         local.open();
     }
 
-    eprintln!("listening on {address}");
     axum::serve(
         listener,
         app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
