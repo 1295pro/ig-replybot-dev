@@ -9,7 +9,7 @@ This guide starts from zero: choose where the bot runs, create your Meta app, co
 | Self-hosted on a laptop or home server | Your computer and the app | Not needed with polling |
 | VPS | The VPS and its Docker container | SSH for installation; a public app port is not needed with polling |
 
-Both modes use the same control room and reply rules. The **VPS / Self-hosted** switch shows your server information or the laptop instructions. The controls below always manage the instance opened in this browser tab. A saved VPS address in the laptop panel is an installation record, not a live connection to the remote bot.
+Both modes use the same control room and reply rules. The **VPS / Self-hosted** switch shows your server information or the laptop instructions. The controls below always manage the instance opened in this browser tab. A saved VPS address in the laptop panel records a previous deployment. To manage the VPS bot, open its own control room through an SSH tunnel.
 
 ## Download and open
 
@@ -89,6 +89,16 @@ The installer runs from the local control room on your computer. It supports roo
 After deployment, the server keeps running when your laptop is closed. VPS mode shows the saved address and panel port. **Change VPS** leads to the local installer; pause the old copy before starting a new one. A new deployment has a separate database and does not migrate history. Keep the previous copy paused after moving: resuming an older database can process comments already handled by the newer installation.
 
 The wizard creates a new `/opt/ig-reply-bot-<id>` folder and Compose project. It does not upgrade/remove an existing bot or edit your firewall, DNS, proxy, or existing containers. The root SSH password is used for the request and not stored. The VPS `runtime.env` contains the bot credentials and panel password, readable by root/Docker. Its panel port binds to VPS loopback and is opened through the supplied SSH tunnel.
+
+### Open the VPS control room again
+
+Start the SSH tunnel from your computer and keep it open while you use the panel. The Docker installer uses port 12950 on the VPS by default. In this example, the tunnel forwards port 29950 on your computer to that port on the VPS:
+
+    ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:29950:127.0.0.1:12950 root@YOUR-VPS
+
+Replace `YOUR-VPS` with the server address and `12950` with the private panel port you chose during deployment. Add `-p YOUR-SSH-PORT` if SSH uses a port other than `22`. Open `http://127.0.0.1:29950/` and sign in with the VPS panel password. If `29950` is already in use on your computer, change the first port in the command and use the same port in your browser.
+
+The desktop launcher opens your computer's bot at `http://127.0.0.1:3000/`. The panel through the tunnel controls the bot on the VPS. To return to an existing installation, reuse the tunnel. **Deploy and run checks** starts a new installation.
 
 ## Saved settings and backups
 

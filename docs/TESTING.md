@@ -14,4 +14,4 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --release
 ```
 
-The platform builds and desktop startup checks run in GitHub Actions: [CI workflow](../.github/workflows/ci.yml) · [release workflow](../.github/workflows/release.yml).
+The platform builds and desktop startup checks run in GitHub Actions: [CI workflow](https://github.com/1295pro/ig-replybot-dev/blob/main/.github/workflows/ci.yml) · [release workflow](https://github.com/1295pro/ig-replybot-dev/blob/main/.github/workflows/release.yml).
