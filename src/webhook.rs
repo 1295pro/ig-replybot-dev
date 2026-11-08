@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicU64, Ordering},
     },
     time::{SystemTime, UNIX_EPOCH},
@@ -20,7 +20,12 @@ use serde_json::Value;
 use sha2::Sha256;
 use tokio::sync::watch;
 
-use crate::{config::Config, domain::keyword::is_exact_keyword, storage::Database};
+use crate::{
+    config::Config,
+    deploy::VpsTunnel,
+    domain::keyword::is_exact_keyword,
+    storage::{Database, DeploymentTarget},
+};
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -30,6 +35,7 @@ pub struct AppState {
     config_updates: watch::Receiver<Arc<Config>>,
     database: Arc<Database>,
     poll_last_success: Arc<AtomicU64>,
+    vps_tunnel: Arc<Mutex<Option<(DeploymentTarget, VpsTunnel)>>>,
 }
 
 impl AppState {
@@ -40,6 +46,7 @@ impl AppState {
             config_updates,
             database,
             poll_last_success: Arc::new(AtomicU64::new(0)),
+            vps_tunnel: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -64,7 +71,32 @@ impl AppState {
     }
 
     pub fn update_config(&self, config: Config) {
+        if self.config().ig_user_id != config.ig_user_id
+            && let Ok(mut active) = self.vps_tunnel.lock()
+        {
+            active.take();
+        }
         self.config.send_replace(Arc::new(config));
+    }
+
+    pub fn set_vps_tunnel(
+        &self,
+        target: DeploymentTarget,
+        tunnel: VpsTunnel,
+    ) -> Result<Option<String>, String> {
+        let mut active = self
+            .vps_tunnel
+            .lock()
+            .map_err(|_| "Could not save the VPS connection".to_owned())?;
+        let url = tunnel.url();
+        *active = Some((target, tunnel));
+        Ok(url)
+    }
+
+    pub fn vps_panel_url(&self, target: &DeploymentTarget) -> Option<String> {
+        let active = self.vps_tunnel.lock().ok()?;
+        let (current, tunnel) = active.as_ref()?;
+        (current == target).then(|| tunnel.url()).flatten()
     }
 }
 

@@ -2,6 +2,10 @@
 
 Connect your own Instagram Business or Creator account, set a trigger and two replies, then run the bot on your computer or on a VPS.
 
+## What's new in 1.0.4
+
+Select **Open VPS control room** after checking or installing a VPS bot. The desktop app opens the private SSH connection and remembers the server address and confirmed fingerprint for the next visit.
+
 ## What's new in 1.0.3
 
 **Check server** now recognizes an existing Docker installation for the connected Instagram account. It shows the bot's status and how to open its control room through SSH, using the same private port and password.
@@ -31,4 +35,4 @@ The setup guide now uses the same ports as the app: 3000 for the desktop control
 - Failed or uncertain deliveries are shown for review and are not automatically retried.
 - The ready-to-run packages are unsigned. Windows 11 Smart App Control may block the Windows build without offering a per-app exception.
 
-Meta controls account access, token validity, API limits, and message delivery. See the [quick start](https://github.com/1295pro/ig-replybot-dev/blob/v1.0.3/docs/QUICK_START.md), [full setup guide](https://github.com/1295pro/ig-replybot-dev/blob/v1.0.3/docs/USER_GUIDE.md), and [testing notes](https://github.com/1295pro/ig-replybot-dev/blob/v1.0.3/docs/TESTING.md) before deploying.
+Meta controls account access, token validity, API limits, and message delivery. See the [quick start](https://github.com/1295pro/ig-replybot-dev/blob/v1.0.4/docs/QUICK_START.md), [full setup guide](https://github.com/1295pro/ig-replybot-dev/blob/v1.0.4/docs/USER_GUIDE.md), and [testing notes](https://github.com/1295pro/ig-replybot-dev/blob/v1.0.4/docs/TESTING.md) before deploying.

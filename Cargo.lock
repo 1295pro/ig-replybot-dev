@@ -1125,7 +1125,7 @@ dependencies = [
 
 [[package]]
 name = "ig-reply-bot"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "axum",
  "dotenvy",

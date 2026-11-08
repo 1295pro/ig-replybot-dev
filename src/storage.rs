@@ -32,11 +32,13 @@ pub struct QueueSummary {
     pub needs_attention: u64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeploymentTarget {
     pub host: String,
     pub ssh_port: u16,
     pub service_port: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_fingerprint: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -555,6 +557,7 @@ mod tests {
             host: "192.0.2.10".to_owned(),
             ssh_port: 2222,
             service_port: 12950,
+            host_fingerprint: None,
         };
         database.save_deployment_target(&target).unwrap();
         let loaded = database.load_deployment_target().unwrap().unwrap();

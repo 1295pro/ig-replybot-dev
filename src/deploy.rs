@@ -12,7 +12,11 @@ use russh::{
 use russh_sftp::{client::SftpSession, protocol::OpenFlags};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::io::AsyncWriteExt;
+use tokio::{
+    io::{AsyncWriteExt, copy_bidirectional},
+    net::TcpListener,
+    task::{JoinHandle, JoinSet},
+};
 use zeroize::Zeroizing;
 
 use crate::config::Config;
@@ -92,7 +96,6 @@ pub struct ExistingBot {
     pub keyword: String,
     pub automation_enabled: bool,
     pub polling_state: String,
-    pub tunnel_command: String,
 }
 
 #[derive(Deserialize)]
@@ -115,7 +118,6 @@ pub struct DeploymentResult {
     pub deployment_id: String,
     pub remote_directory: String,
     pub service_port: u16,
-    pub tunnel_command: String,
     pub account_username: String,
     pub keyword: String,
     pub automated_checks_passed: bool,
@@ -148,6 +150,69 @@ impl client::Handler for SshHandler {
     }
 }
 
+pub struct VpsTunnel {
+    port: u16,
+    task: JoinHandle<()>,
+}
+
+impl VpsTunnel {
+    pub fn url(&self) -> Option<String> {
+        (!self.task.is_finished()).then(|| format!("http://127.0.0.1:{}/", self.port))
+    }
+
+    async fn open(mut session: Handle<SshHandler>, remote_port: u16) -> Result<Self, String> {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+            .await
+            .map_err(|_| "Could not open a private port on this computer".to_owned())?;
+        let address = listener
+            .local_addr()
+            .map_err(|_| "Could not read the private panel address".to_owned())?;
+        let probe = tokio::time::timeout(
+            Duration::from_secs(8),
+            session.channel_open_direct_tcpip("127.0.0.1", remote_port.into(), "127.0.0.1", address.port().into()),
+        )
+        .await
+        .map_err(|_| "Opening the VPS control room timed out. Run Check server again".to_owned())?
+        .map_err(|_| "The VPS control room is unreachable through SSH. Check the private port and SSH forwarding settings".to_owned())?;
+        let _ = probe.close().await;
+
+        let task = tokio::spawn(async move {
+            let mut connections = JoinSet::new();
+            loop {
+                tokio::select! {
+                    _ = &mut session => break,
+                    _ = connections.join_next(), if !connections.is_empty() => (),
+                    accepted = listener.accept(), if connections.len() < 32 => {
+                        let Ok((mut socket, peer)) = accepted else { break };
+                        let channel = tokio::time::timeout(
+                            Duration::from_secs(8),
+                            session.channel_open_direct_tcpip(
+                                "127.0.0.1", remote_port.into(), "127.0.0.1", peer.port().into()
+                            ),
+                        )
+                        .await;
+                        if let Ok(Ok(channel)) = channel {
+                            connections.spawn(async move {
+                                let _ = copy_bidirectional(&mut socket, &mut channel.into_stream()).await;
+                            });
+                        }
+                    }
+                }
+            }
+        });
+        Ok(Self {
+            port: address.port(),
+            task,
+        })
+    }
+}
+
+impl Drop for VpsTunnel {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
+
 struct CommandOutput {
     code: u32,
     stdout: String,
@@ -169,7 +234,10 @@ pub async fn inspect_host(connection: &ConnectionInput) -> Result<String, String
     Ok(fingerprint)
 }
 
-pub async fn check_server(input: PreflightInput, config: &Config) -> Result<ServerInfo, String> {
+pub async fn check_server(
+    input: PreflightInput,
+    config: &Config,
+) -> Result<(ServerInfo, Option<Result<VpsTunnel, String>>), String> {
     let PreflightInput {
         connection,
         host_fingerprint,
@@ -179,11 +247,16 @@ pub async fn check_server(input: PreflightInput, config: &Config) -> Result<Serv
     validate_fingerprint(&host_fingerprint)?;
     let ssh_password = Zeroizing::new(ssh_password);
     let mut session = authenticated_session(&connection, &host_fingerprint, &ssh_password).await?;
-    let info = check_authenticated(&mut session, &connection, config).await;
-    let _ = session
-        .disconnect(Disconnect::ByApplication, "", "en")
-        .await;
-    info
+    let info = check_authenticated(&mut session, &connection, config).await?;
+    let panel = if info.existing_bot.is_some() {
+        Some(VpsTunnel::open(session, connection.service_port).await)
+    } else {
+        let _ = session
+            .disconnect(Disconnect::ByApplication, "", "en")
+            .await;
+        None
+    };
+    Ok((info, panel))
 }
 
 async fn check_authenticated(
@@ -204,7 +277,7 @@ async fn check_authenticated(
 
         match output.code {
             0 => {
-                info.existing_bot = Some(verify_existing_bot(&output.stdout, connection, config)?);
+                info.existing_bot = Some(verify_existing_bot(&output.stdout, config)?);
                 info.existing_bot_detected = true;
                 info.port_available = false;
             }
@@ -215,11 +288,7 @@ async fn check_authenticated(
     Ok(info)
 }
 
-fn verify_existing_bot(
-    status: &str,
-    connection: &ConnectionInput,
-    config: &Config,
-) -> Result<ExistingBot, String> {
+fn verify_existing_bot(status: &str, config: &Config) -> Result<ExistingBot, String> {
     let status: RemoteStatus = serde_json::from_str(status)
         .map_err(|_| "The existing VPS bot returned an invalid status response".to_owned())?;
     let username = status
@@ -242,11 +311,13 @@ fn verify_existing_bot(
         keyword: status.keyword,
         automation_enabled: status.automation_enabled,
         polling_state: status.polling_state,
-        tunnel_command: tunnel_command(connection),
     })
 }
 
-pub async fn deploy(input: InstallInput, config: &Config) -> Result<DeploymentResult, String> {
+pub async fn deploy(
+    input: InstallInput,
+    config: &Config,
+) -> Result<(DeploymentResult, Result<VpsTunnel, String>), String> {
     let InstallInput {
         connection,
         host_fingerprint,
@@ -263,18 +334,10 @@ pub async fn deploy(input: InstallInput, config: &Config) -> Result<DeploymentRe
     let ssh_password = Zeroizing::new(ssh_password);
     let remote_admin_password = Zeroizing::new(remote_admin_password);
     let mut session = authenticated_session(&connection, &host_fingerprint, &ssh_password).await?;
-    let result = deploy_authenticated(
-        &mut session,
-        &connection,
-        &host_fingerprint,
-        &remote_admin_password,
-        config,
-    )
-    .await;
-    let _ = session
-        .disconnect(Disconnect::ByApplication, "", "en")
-        .await;
-    result
+    let result =
+        deploy_authenticated(&mut session, &connection, &remote_admin_password, config).await?;
+    let panel = VpsTunnel::open(session, connection.service_port).await;
+    Ok((result, panel))
 }
 
 pub fn ensure_deployable_config(config: &Config) -> Result<(), String> {
@@ -349,7 +412,7 @@ async fn open_session(
         observed_fingerprint,
     };
     let config = client::Config {
-        inactivity_timeout: Some(Duration::from_secs(600)),
+        keepalive_interval: Some(Duration::from_secs(30)),
         ..Default::default()
     };
     tokio::time::timeout(
@@ -476,7 +539,6 @@ fn parse_server_info(output: &str) -> Result<ServerInfo, String> {
 async fn deploy_authenticated(
     session: &mut Handle<SshHandler>,
     connection: &ConnectionInput,
-    _fingerprint: &str,
     remote_admin_password: &str,
     config: &Config,
 ) -> Result<DeploymentResult, String> {
@@ -607,7 +669,6 @@ async fn deploy_authenticated(
         deployment_id,
         remote_directory,
         service_port: connection.service_port,
-        tunnel_command: tunnel_command(connection),
         account_username: config.ig_username.clone(),
         keyword: config.keyword.clone(),
         automated_checks_passed: true,
@@ -616,15 +677,6 @@ async fn deploy_authenticated(
             config.keyword
         ),
     })
-}
-
-fn tunnel_command(connection: &ConnectionInput) -> String {
-    format!(
-        "ssh -N -o ExitOnForwardFailure=yes -p {2} -L 127.0.0.1:{0}:127.0.0.1:{0} root@{1}",
-        connection.service_port,
-        connection.host.trim(),
-        connection.ssh_port
-    )
 }
 
 async fn upload_bundle(
@@ -981,12 +1033,6 @@ mod tests {
     #[test]
     fn reconnects_to_an_older_vps_for_the_same_account_and_preserves_paused_status() {
         let config = sample_config();
-        let connection = ConnectionInput {
-            host: "bot.example.com".to_owned(),
-            ssh_port: 2222,
-            service_port: 12950,
-            username: "root".to_owned(),
-        };
         let mut status = serde_json::json!({
             "configured": {"connected": true},
             "account_username": "Sample_Account",
@@ -994,27 +1040,17 @@ mod tests {
             "automation_enabled": false,
             "polling_state": "off"
         });
-        let bot = verify_existing_bot(&status.to_string(), &connection, &config).unwrap();
+        let bot = verify_existing_bot(&status.to_string(), &config).unwrap();
         assert!(!bot.automation_enabled);
         assert_eq!(bot.polling_state, "off");
         assert_eq!(bot.keyword, "vps-trigger");
-        assert!(
-            bot.tunnel_command
-                .contains("-p 2222 -L 127.0.0.1:12950:127.0.0.1:12950")
-        );
         status["account_username"] = serde_json::json!("another_account");
-        assert!(verify_existing_bot(&status.to_string(), &connection, &config).is_err());
+        assert!(verify_existing_bot(&status.to_string(), &config).is_err());
     }
 
     #[test]
     fn reconnect_requires_the_same_account_id_when_the_vps_reports_it() {
         let config = sample_config();
-        let connection = ConnectionInput {
-            host: "bot.example.com".to_owned(),
-            ssh_port: 22,
-            service_port: 12950,
-            username: "root".to_owned(),
-        };
         let mut status = serde_json::json!({
             "configured": {"connected": true},
             "account_id": "987654321",
@@ -1023,14 +1059,14 @@ mod tests {
             "automation_enabled": true,
             "polling_state": "healthy"
         });
-        assert!(verify_existing_bot(&status.to_string(), &connection, &config).is_err());
+        assert!(verify_existing_bot(&status.to_string(), &config).is_err());
         status["account_id"] = serde_json::json!(config.ig_user_id);
         status["account_username"] = serde_json::json!("renamed_account");
-        let bot = verify_existing_bot(&status.to_string(), &connection, &config).unwrap();
+        let bot = verify_existing_bot(&status.to_string(), &config).unwrap();
         assert!(bot.automation_enabled);
         assert_eq!(bot.polling_state, "healthy");
         status["configured"]["connected"] = serde_json::json!(false);
-        assert!(verify_existing_bot(&status.to_string(), &connection, &config).is_err());
+        assert!(verify_existing_bot(&status.to_string(), &config).is_err());
     }
 
     #[test]

@@ -6,7 +6,7 @@ use axum::{
     routing::{get, post, put},
 };
 use hmac::{Hmac, KeyInit, Mac};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::Sha256;
 use std::{
@@ -17,7 +17,7 @@ use std::{
 
 use crate::{
     config::Config,
-    deploy::{self, ConnectionInput, InstallInput, PreflightInput},
+    deploy::{self, ConnectionInput, InstallInput, PreflightInput, VpsTunnel},
     meta_api::MetaApi,
     storage::DeploymentTarget,
     webhook::AppState,
@@ -120,9 +120,9 @@ async fn deploy_preflight(
     if let Err(error) = deploy::ensure_connected_account(&config) {
         return error_response(StatusCode::CONFLICT, error);
     }
-    let target = deployment_target(&input.connection);
+    let target = deployment_target(&input.connection, &input.host_fingerprint);
     match deploy::check_server(input, &config).await {
-        Ok(info) => {
+        Ok((info, panel)) => {
             if info.existing_bot.is_some() {
                 if state.config().ig_user_id != config.ig_user_id {
                     return error_response(
@@ -130,14 +130,13 @@ async fn deploy_preflight(
                         "The local Instagram account changed. Run Check server again".to_owned(),
                     );
                 }
-                save_deployment_target(&state, &target);
             } else if !info.existing_bot_detected
                 && info.port_available
                 && let Err(error) = deploy::ensure_deployable_config(&state.config())
             {
                 return error_response(StatusCode::CONFLICT, error);
             }
-            (StatusCode::OK, Json(info)).into_response()
+            panel_response(&state, target, info, panel)
         }
         Err(error) => error_response(StatusCode::BAD_GATEWAY, error),
     }
@@ -156,27 +155,69 @@ async fn deploy_install(
     if let Err(error) = deploy::ensure_deployable_config(&config) {
         return error_response(StatusCode::CONFLICT, error);
     }
-    let target = deployment_target(&input.connection);
+    let target = deployment_target(&input.connection, &input.host_fingerprint);
     match deploy::deploy(input, &config).await {
-        Ok(result) => {
-            save_deployment_target(&state, &target);
-            (StatusCode::OK, Json(result)).into_response()
+        Ok((result, panel)) => {
+            if state.config().ig_user_id != config.ig_user_id {
+                return Json(PanelResponse {
+                    result,
+                    panel_url: None,
+                    panel_error: Some("The local Instagram account changed. Connect the account installed on the VPS and run Check server".to_owned()),
+                }).into_response();
+            }
+            panel_response(&state, target, result, Some(panel))
         }
         Err(error) => error_response(StatusCode::BAD_GATEWAY, error),
     }
 }
 
-fn deployment_target(connection: &ConnectionInput) -> DeploymentTarget {
+#[derive(Serialize)]
+struct PanelResponse<T> {
+    #[serde(flatten)]
+    result: T,
+    panel_url: Option<String>,
+    panel_error: Option<String>,
+}
+
+fn panel_response<T: Serialize>(
+    state: &AppState,
+    target: DeploymentTarget,
+    result: T,
+    panel: Option<Result<VpsTunnel, String>>,
+) -> Response {
+    let mut response = PanelResponse {
+        result,
+        panel_url: None,
+        panel_error: None,
+    };
+    if let Some(panel) = panel {
+        match state.database().save_deployment_target(&target) {
+            Ok(()) => match panel.and_then(|tunnel| state.set_vps_tunnel(target, tunnel)) {
+                Ok(Some(url)) => response.panel_url = Some(url),
+                Ok(None) => {
+                    response.panel_error =
+                        Some("The VPS connection closed. Run Check server again".to_owned())
+                }
+                Err(error) => response.panel_error = Some(error),
+            },
+            Err(error) => {
+                eprintln!(
+                    "VPS check succeeded, but its address could not be saved locally: {error}"
+                );
+                response.panel_error =
+                    Some("Could not save the VPS address on this computer".to_owned());
+            }
+        }
+    }
+    Json(response).into_response()
+}
+
+fn deployment_target(connection: &ConnectionInput, fingerprint: &str) -> DeploymentTarget {
     DeploymentTarget {
         host: connection.host.trim().to_owned(),
         ssh_port: connection.ssh_port,
         service_port: connection.service_port,
-    }
-}
-
-fn save_deployment_target(state: &AppState, target: &DeploymentTarget) {
-    if let Err(error) = state.database().save_deployment_target(target) {
-        eprintln!("VPS check succeeded, but its address could not be saved locally: {error}");
+        host_fingerprint: Some(fingerprint.to_owned()),
     }
 }
 
@@ -278,6 +319,7 @@ async fn status(State(state): State<AppState>, headers: HeaderMap) -> Response {
                 .ok()
                 .and_then(|value| value.parse().ok())
                 .unwrap_or(12950),
+            host_fingerprint: None,
         })
         .or(deployment);
     let configured = json!({
@@ -303,6 +345,7 @@ async fn status(State(state): State<AppState>, headers: HeaderMap) -> Response {
         "settings_saved": settings_saved,
         "rules_configured": rules_configured,
         "live_test_passed": live_test_passed,
+        "vps_panel_url": deployment.as_ref().and_then(|target| state.vps_panel_url(target)),
         "deployment": deployment,
     });
     (StatusCode::OK, Json(body)).into_response()
