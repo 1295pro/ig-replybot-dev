@@ -83,6 +83,31 @@ pub struct ServerInfo {
     pub existing_bot_detected: bool,
     pub port_available: bool,
     pub install_docker_supported: bool,
+    pub existing_bot: Option<ExistingBot>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ExistingBot {
+    pub account_username: String,
+    pub keyword: String,
+    pub automation_enabled: bool,
+    pub polling_state: String,
+    pub tunnel_command: String,
+}
+
+#[derive(Deserialize)]
+struct RemoteStatus {
+    account_id: Option<String>,
+    account_username: Option<String>,
+    configured: RemoteConnection,
+    keyword: String,
+    automation_enabled: bool,
+    polling_state: String,
+}
+
+#[derive(Deserialize)]
+struct RemoteConnection {
+    connected: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -144,7 +169,7 @@ pub async fn inspect_host(connection: &ConnectionInput) -> Result<String, String
     Ok(fingerprint)
 }
 
-pub async fn check_server(input: PreflightInput) -> Result<ServerInfo, String> {
+pub async fn check_server(input: PreflightInput, config: &Config) -> Result<ServerInfo, String> {
     let PreflightInput {
         connection,
         host_fingerprint,
@@ -154,11 +179,71 @@ pub async fn check_server(input: PreflightInput) -> Result<ServerInfo, String> {
     validate_fingerprint(&host_fingerprint)?;
     let ssh_password = Zeroizing::new(ssh_password);
     let mut session = authenticated_session(&connection, &host_fingerprint, &ssh_password).await?;
-    let info = inspect_server(&mut session, &connection).await;
+    let info = check_authenticated(&mut session, &connection, config).await;
     let _ = session
         .disconnect(Disconnect::ByApplication, "", "en")
         .await;
     info
+}
+
+async fn check_authenticated(
+    session: &mut Handle<SshHandler>,
+    connection: &ConnectionInput,
+    config: &Config,
+) -> Result<ServerInfo, String> {
+    let mut info = inspect_server(session, connection).await?;
+    if info.docker_running {
+        let command =
+            EXISTING_BOT_SCRIPT.replace("PANEL_PORT", &connection.service_port.to_string());
+        let output = tokio::time::timeout(
+            Duration::from_secs(20),
+            run_command(session, &command, None),
+        )
+        .await
+        .map_err(|_| "The existing VPS bot check timed out".to_owned())??;
+
+        match output.code {
+            0 => {
+                info.existing_bot = Some(verify_existing_bot(&output.stdout, connection, config)?);
+                info.existing_bot_detected = true;
+                info.port_available = false;
+            }
+            42 => (),
+            _ => return Err("Could not verify the existing VPS control room. Check Docker and the bot status on the VPS".to_owned()),
+        }
+    }
+    Ok(info)
+}
+
+fn verify_existing_bot(
+    status: &str,
+    connection: &ConnectionInput,
+    config: &Config,
+) -> Result<ExistingBot, String> {
+    let status: RemoteStatus = serde_json::from_str(status)
+        .map_err(|_| "The existing VPS bot returned an invalid status response".to_owned())?;
+    let username = status
+        .account_username
+        .filter(|username| status.configured.connected && !username.is_empty())
+        .ok_or_else(|| "The existing VPS bot has no verified Instagram account".to_owned())?;
+    // Older VPS versions report only the verified username.
+    let matches = match status.account_id {
+        Some(id) => config.ig_user_id.as_deref() == Some(id.as_str()),
+        None => username.eq_ignore_ascii_case(&config.ig_username),
+    };
+    if !matches {
+        return Err(format!(
+            "The existing VPS bot is connected to @{}, but this computer is connected to @{}",
+            username, config.ig_username
+        ));
+    }
+    Ok(ExistingBot {
+        account_username: username,
+        keyword: status.keyword,
+        automation_enabled: status.automation_enabled,
+        polling_state: status.polling_state,
+        tunnel_command: tunnel_command(connection),
+    })
 }
 
 pub async fn deploy(input: InstallInput, config: &Config) -> Result<DeploymentResult, String> {
@@ -202,13 +287,15 @@ pub fn ensure_deployable_config(config: &Config) -> Result<(), String> {
     if !config.poll_enabled {
         return Err("VPS deployment currently requires polling for the automatic Meta test. Enable polling first".to_owned());
     }
+    ensure_connected_account(config)
+}
+
+pub fn ensure_connected_account(config: &Config) -> Result<(), String> {
     if config.ig_access_token.is_none()
         || config.ig_user_id.is_none()
         || config.ig_username.is_empty()
     {
-        return Err(
-            "Connect and verify an Instagram Professional account before deployment".to_owned(),
-        );
+        return Err("Connect and verify an Instagram Professional account first".to_owned());
     }
     Ok(())
 }
@@ -322,7 +409,7 @@ async fn inspect_server(
     connection: &ConnectionInput,
 ) -> Result<ServerInfo, String> {
     let command = format!(
-        "set -eu; printf 'uid=%s\\n' \"$(id -u)\"; . /etc/os-release; printf 'os_id=%s\\nos_version=%s\\nos_name=%s\\n' \"$ID\" \"${{VERSION_ID:-}}\" \"${{PRETTY_NAME:-$ID}}\"; printf 'architecture=%s\\n' \"$(dpkg --print-architecture 2>/dev/null || uname -m)\"; if command -v docker >/dev/null 2>&1; then printf 'docker_installed=1\\n'; if docker info >/dev/null 2>&1; then printf 'docker_running=1\\n'; else printf 'docker_running=0\\n'; fi; if docker compose version >/dev/null 2>&1; then printf 'compose_installed=1\\n'; else printf 'compose_installed=0\\n'; fi; else printf 'docker_installed=0\\ndocker_running=0\\ncompose_installed=0\\n'; fi; printf 'conflicts='; dpkg-query -W -f='${{Package}} ' docker.io docker-compose docker-compose-v2 docker-doc docker-buildx podman-docker containerd runc 2>/dev/null || true; printf '\\n'; if systemctl is-active --quiet ig-reply-bot.service 2>/dev/null || (command -v pgrep >/dev/null 2>&1 && pgrep -x ig-reply-bot >/dev/null 2>&1) || (command -v docker >/dev/null 2>&1 && docker ps --format '{{{{.Names}}}}' | grep -Eiq '(^|[-_])ig[-_]?reply[-_]?bot([-_]|$)'); then printf 'existing_bot=1\\n'; else printf 'existing_bot=0\\n'; fi; if command -v ss >/dev/null 2>&1 && ss -H -ltn 'sport = :{}' 2>/dev/null | grep -q .; then printf 'port_available=0\\n'; else printf 'port_available=1\\n'; fi",
+        "set -eu; printf 'uid=%s\\n' \"$(id -u)\"; . /etc/os-release; printf 'os_id=%s\\nos_version=%s\\nos_name=%s\\n' \"$ID\" \"${{VERSION_ID:-}}\" \"${{PRETTY_NAME:-$ID}}\"; printf 'architecture=%s\\n' \"$(dpkg --print-architecture 2>/dev/null || uname -m)\"; if command -v docker >/dev/null 2>&1; then printf 'docker_installed=1\\n'; if docker info >/dev/null 2>&1; then printf 'docker_running=1\\n'; else printf 'docker_running=0\\n'; fi; if docker compose version >/dev/null 2>&1; then printf 'compose_installed=1\\n'; else printf 'compose_installed=0\\n'; fi; else printf 'docker_installed=0\\ndocker_running=0\\ncompose_installed=0\\n'; fi; printf 'conflicts='; dpkg-query -W -f='${{Package}} ' docker.io docker-compose docker-compose-v2 docker-doc docker-buildx podman-docker containerd runc 2>/dev/null || true; printf '\\n'; if systemctl is-active --quiet ig-reply-bot.service 2>/dev/null || (command -v pgrep >/dev/null 2>&1 && pgrep -x ig-reply-bot >/dev/null 2>&1) || (command -v docker >/dev/null 2>&1 && docker ps --format '{{{{.Names}}}}' | grep -Eiq '(^|[-_])ig[-_]?reply[-_]?bot([a-f0-9]+-bot-[0-9]+$|[-_]|$)'); then printf 'existing_bot=1\\n'; else printf 'existing_bot=0\\n'; fi; if command -v ss >/dev/null 2>&1 && ss -H -ltn 'sport = :{}' 2>/dev/null | grep -q .; then printf 'port_available=0\\n'; else printf 'port_available=1\\n'; fi",
         connection.service_port
     );
     let output = run_command(session, &command, None).await?;
@@ -382,6 +469,7 @@ fn parse_server_info(output: &str) -> Result<ServerInfo, String> {
         existing_bot_detected,
         port_available: get("port_available") == "1",
         install_docker_supported,
+        existing_bot: None,
     })
 }
 
@@ -392,15 +480,15 @@ async fn deploy_authenticated(
     remote_admin_password: &str,
     config: &Config,
 ) -> Result<DeploymentResult, String> {
-    let info = inspect_server(session, connection).await?;
+    let info = check_authenticated(session, connection, config).await?;
     if info.existing_bot_detected {
         return Err(
-            "An existing IG Reply Bot process or container is already running on this VPS. Pause it before creating a second instance for the same Instagram account".to_owned(),
+            "An IG Reply Bot is already running on this VPS. Use Check server with its private panel port to reconnect".to_owned(),
         );
     }
     if !info.port_available {
         return Err(format!(
-            "Port {} is already in use on the VPS; choose another local control-room port",
+            "Port {} is already in use on the VPS; choose another private VPS panel port",
             connection.service_port
         ));
     }
@@ -515,15 +603,11 @@ async fn deploy_authenticated(
         ));
     }
 
-    let tunnel_command = format!(
-        "ssh -p {2} -L {0}:127.0.0.1:{0} root@{1}",
-        connection.service_port, connection.host, connection.ssh_port
-    );
     Ok(DeploymentResult {
         deployment_id,
         remote_directory,
         service_port: connection.service_port,
-        tunnel_command,
+        tunnel_command: tunnel_command(connection),
         account_username: config.ig_username.clone(),
         keyword: config.keyword.clone(),
         automated_checks_passed: true,
@@ -532,6 +616,15 @@ async fn deploy_authenticated(
             config.keyword
         ),
     })
+}
+
+fn tunnel_command(connection: &ConnectionInput) -> String {
+    format!(
+        "ssh -N -o ExitOnForwardFailure=yes -p {2} -L 127.0.0.1:{0}:127.0.0.1:{0} root@{1}",
+        connection.service_port,
+        connection.host.trim(),
+        connection.ssh_port
+    )
 }
 
 async fn upload_bundle(
@@ -773,6 +866,22 @@ fn new_deployment_id() -> String {
     format!("{timestamp:x}{:x}", std::process::id())
 }
 
+// Query only containers installed by this app and bound to the requested private port.
+const EXISTING_BOT_SCRIPT: &str = r#"set -eu
+containers=$(docker ps --filter label=com.docker.compose.service=bot --format '{{.ID}} {{.Label "com.docker.compose.project"}}')
+while read -r container project; do
+  case "$project" in igreplybot*) ;; *) continue ;; esac
+  case "${project#igreplybot}" in ''|*[!a-f0-9]*) continue ;; esac
+  binding=$(docker port "$container" 3000/tcp 2>/dev/null) || continue
+  if [ "$binding" = "127.0.0.1:PANEL_PORT" ]; then
+    exec docker exec "$container" sh -c 'test -n "$IG_ADMIN_PASSWORD" && curl -qfsS --max-time 8 -H "Authorization: Bearer $IG_ADMIN_PASSWORD" http://127.0.0.1:3000/api/admin/status'
+  fi
+done <<EOF
+$containers
+EOF
+exit 42
+"#;
+
 const DOCKER_INSTALL_SCRIPT: &str = r#"set -eu
 . /etc/os-release
 case "$ID" in ubuntu|debian) ;; *) echo 'unsupported_linux_distribution'; exit 20 ;; esac
@@ -798,7 +907,7 @@ systemctl enable --now docker
 mod tests {
     use super::{
         ConnectionInput, DEPLOY_FILES, build_runtime_env, parse_server_info, render_compose,
-        validate_connection,
+        validate_connection, verify_existing_bot,
     };
     use crate::config::Config;
     use std::{net::SocketAddr, path::PathBuf};
@@ -867,6 +976,61 @@ mod tests {
         let conflicting =
             "uid=0\nos_id=ubuntu\narchitecture=amd64\ndocker_installed=0\nconflicts=docker.io\n";
         assert!(parse_server_info(conflicting).is_err());
+    }
+
+    #[test]
+    fn reconnects_to_an_older_vps_for_the_same_account_and_preserves_paused_status() {
+        let config = sample_config();
+        let connection = ConnectionInput {
+            host: "bot.example.com".to_owned(),
+            ssh_port: 2222,
+            service_port: 12950,
+            username: "root".to_owned(),
+        };
+        let mut status = serde_json::json!({
+            "configured": {"connected": true},
+            "account_username": "Sample_Account",
+            "keyword": "vps-trigger",
+            "automation_enabled": false,
+            "polling_state": "off"
+        });
+        let bot = verify_existing_bot(&status.to_string(), &connection, &config).unwrap();
+        assert!(!bot.automation_enabled);
+        assert_eq!(bot.polling_state, "off");
+        assert_eq!(bot.keyword, "vps-trigger");
+        assert!(
+            bot.tunnel_command
+                .contains("-p 2222 -L 127.0.0.1:12950:127.0.0.1:12950")
+        );
+        status["account_username"] = serde_json::json!("another_account");
+        assert!(verify_existing_bot(&status.to_string(), &connection, &config).is_err());
+    }
+
+    #[test]
+    fn reconnect_requires_the_same_account_id_when_the_vps_reports_it() {
+        let config = sample_config();
+        let connection = ConnectionInput {
+            host: "bot.example.com".to_owned(),
+            ssh_port: 22,
+            service_port: 12950,
+            username: "root".to_owned(),
+        };
+        let mut status = serde_json::json!({
+            "configured": {"connected": true},
+            "account_id": "987654321",
+            "account_username": "sample_account",
+            "keyword": "launch",
+            "automation_enabled": true,
+            "polling_state": "healthy"
+        });
+        assert!(verify_existing_bot(&status.to_string(), &connection, &config).is_err());
+        status["account_id"] = serde_json::json!(config.ig_user_id);
+        status["account_username"] = serde_json::json!("renamed_account");
+        let bot = verify_existing_bot(&status.to_string(), &connection, &config).unwrap();
+        assert!(bot.automation_enabled);
+        assert_eq!(bot.polling_state, "healthy");
+        status["configured"]["connected"] = serde_json::json!(false);
+        assert!(verify_existing_bot(&status.to_string(), &connection, &config).is_err());
     }
 
     #[test]

@@ -116,11 +116,29 @@ async fn deploy_preflight(
     if let Err(error) = authorize_local_deploy(&state, &headers, peer) {
         return error_response(StatusCode::FORBIDDEN, error);
     }
-    if let Err(error) = deploy::ensure_deployable_config(&state.config()) {
+    let config = state.config();
+    if let Err(error) = deploy::ensure_connected_account(&config) {
         return error_response(StatusCode::CONFLICT, error);
     }
-    match deploy::check_server(input).await {
-        Ok(info) => (StatusCode::OK, Json(info)).into_response(),
+    let target = deployment_target(&input.connection);
+    match deploy::check_server(input, &config).await {
+        Ok(info) => {
+            if info.existing_bot.is_some() {
+                if state.config().ig_user_id != config.ig_user_id {
+                    return error_response(
+                        StatusCode::CONFLICT,
+                        "The local Instagram account changed. Run Check server again".to_owned(),
+                    );
+                }
+                save_deployment_target(&state, &target);
+            } else if !info.existing_bot_detected
+                && info.port_available
+                && let Err(error) = deploy::ensure_deployable_config(&state.config())
+            {
+                return error_response(StatusCode::CONFLICT, error);
+            }
+            (StatusCode::OK, Json(info)).into_response()
+        }
         Err(error) => error_response(StatusCode::BAD_GATEWAY, error),
     }
 }
@@ -138,21 +156,27 @@ async fn deploy_install(
     if let Err(error) = deploy::ensure_deployable_config(&config) {
         return error_response(StatusCode::CONFLICT, error);
     }
-    let target = DeploymentTarget {
-        host: input.connection.host.clone(),
-        ssh_port: input.connection.ssh_port,
-        service_port: input.connection.service_port,
-    };
+    let target = deployment_target(&input.connection);
     match deploy::deploy(input, &config).await {
         Ok(result) => {
-            if let Err(error) = state.database().save_deployment_target(&target) {
-                eprintln!(
-                    "deployment succeeded, but its address could not be saved locally: {error}"
-                );
-            }
+            save_deployment_target(&state, &target);
             (StatusCode::OK, Json(result)).into_response()
         }
         Err(error) => error_response(StatusCode::BAD_GATEWAY, error),
+    }
+}
+
+fn deployment_target(connection: &ConnectionInput) -> DeploymentTarget {
+    DeploymentTarget {
+        host: connection.host.trim().to_owned(),
+        ssh_port: connection.ssh_port,
+        service_port: connection.service_port,
+    }
+}
+
+fn save_deployment_target(state: &AppState, target: &DeploymentTarget) {
+    if let Err(error) = state.database().save_deployment_target(target) {
+        eprintln!("VPS check succeeded, but its address could not be saved locally: {error}");
     }
 }
 
@@ -268,6 +292,7 @@ async fn status(State(state): State<AppState>, headers: HeaderMap) -> Response {
         "poll_interval_seconds": config.poll_interval_seconds,
         "polling_state": polling_state,
         "last_poll_success": if last_poll == 0 { Value::Null } else { json!(last_poll) },
+        "account_id": config.ig_user_id,
         "account_username": if config.ig_username.is_empty() { Value::Null } else { json!(config.ig_username) },
         "configured": configured,
         "keyword": config.keyword,

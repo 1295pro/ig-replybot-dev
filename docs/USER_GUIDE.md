@@ -78,11 +78,11 @@ The default interval is one minute, plus Meta's processing time. Keep the app ru
 
 The installer runs from the local control room on your computer. It supports root SSH access to Ubuntu/Debian on x64 or ARM64.
 
-1. Connect Instagram and save your replies locally, then **pause the local bot**.
+1. Connect Instagram in the desktop control room.
 2. Choose **VPS** and open the deployment form. Enter your server address, SSH port, and private panel port.
 3. Select **Read SSH server fingerprint**, compare it with the provider's console, and confirm it.
-4. Enter the root SSH password and a separate VPS panel password of at least 32 characters. Keep the panel password for future sign-in.
-5. Select **Check server**. Review the detected OS, Docker/Compose, port availability, and existing bot check.
+4. Enter the root SSH password.
+5. Select **Check server**. If it verifies an existing bot for your Instagram account, it shows its status and how to open its control room. For a new installation, save your replies locally and **pause the local bot** before checking the server. Then review the result and choose a VPS panel password of at least 32 characters.
 6. Confirm the installation plan, then select **Deploy and run checks**. Docker is installed if needed. The installer builds a separate container and checks the first successful Meta poll.
 7. Use the displayed SSH tunnel command and open the private admin URL. Leave a new trigger comment from another account and confirm both replies.
 
@@ -92,7 +92,9 @@ The wizard creates a new `/opt/ig-reply-bot-<id>` folder and Compose project. It
 
 ### Open the VPS control room again
 
-For an existing VPS installation, use the SSH command shown at the end of deployment. If you used the default private panel port, this command opens the VPS panel on port 12950 on your computer:
+In the desktop control room, enter the original VPS address and private panel port, confirm its SSH fingerprint, and select **Check server**. If the running Docker installation belongs to the connected Instagram account, the result shows its trigger, automation and polling status, and an **Open VPS control room** link. Run the displayed SSH command first and use the existing VPS panel password to sign in. The VPS address is saved in the local control room for later access.
+
+For manual access, use the SSH command shown at the end of deployment. If you used the default private panel port, this command opens the VPS panel on port 12950 on your computer:
 
     ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:12950:127.0.0.1:12950 root@YOUR-VPS
 

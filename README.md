@@ -36,7 +36,7 @@ Some Meta app setups ask for public Privacy Policy, Terms of Service, and Data D
 
 ## Run continuously on a VPS
 
-Start the app on your computer and save your account and reply settings. Choose **VPS**, enter your server details, check its SSH fingerprint, and follow **Check server → Deploy and run checks**.
+Start the app on your computer and save your account and reply settings. Choose **VPS**, enter your server details, check its SSH fingerprint, and select **Check server**. If it finds your existing bot, open its control room. For a new installation, continue with **Deploy and run checks**.
 
 The installer supports Ubuntu/Debian on x64 or ARM64. It creates a separate Docker project, checks Meta polling, and gives you the command to open the server's control room. Pause the laptop copy before deploying. The VPS keeps working after your laptop is closed. To manage an existing VPS bot, open its control room through SSH. The desktop launcher opens the copy on your computer at `http://127.0.0.1:3000/`.
 

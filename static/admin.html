@@ -68,7 +68,10 @@
     <main class="main">
       <header class="topbar"><div><div class="eyebrow">IG Reply Bot <span class="muted">/ workspace</span></div><h1>Control room</h1></div><div class="account-chip"><span class="dot"></span><span id="header-account">Not connected</span><span class="muted">·</span><span id="header-state">Paused</span></div></header>
       <div class="hosting-switch" role="group" aria-label="Hosting view"><button id="view-vps" type="button" aria-pressed="true">VPS</button><button id="view-self-hosted" type="button" aria-pressed="false">Self-hosted</button></div>
-      <section class="hosting-panel" id="hosting-vps"><h2>Your VPS</h2><strong id="hosting-address">Loading…</strong><div class="hosting-meta"><span id="hosting-ssh-port"></span><span id="hosting-control-port"></span></div><p id="hosting-state">Checking the connected bot.</p><button class="secondary" id="change-vps" type="button">Change VPS</button><div class="hosting-help hidden" id="change-vps-help"><p>To move the bot, pause automation on this VPS, then open the local control room on your computer and run Deploy to VPS with the new address. The new installation has its own data and needs a fresh live comment test.</p><a href="http://127.0.0.1:3000/" target="_blank" rel="noopener noreferrer">Open local control room ↗</a></div></section>
+      <section class="hosting-panel" id="hosting-vps"><h2>Your VPS</h2><strong id="hosting-address">Loading…</strong><div class="hosting-meta"><span id="hosting-ssh-port"></span><span id="hosting-control-port"></span></div><p id="hosting-state">Checking the connected bot.</p><details class="hosting-help hidden" id="saved-vps-access">
+        <summary>Open VPS control room</summary><p>Run this SSH command in a terminal and leave it open. Sign in with the VPS control-room password.</p>
+        <pre class="deploy-result"><code id="saved-vps-command"></code></pre><a id="saved-vps-link" target="_blank" rel="noopener noreferrer">Open panel ↗</a>
+      </details><button class="secondary" id="change-vps" type="button">Change VPS</button><div class="hosting-help hidden" id="change-vps-help"><p>To move the bot, pause automation on this VPS, then open the local control room on your computer and run Deploy to VPS with the new address. The new installation has its own data and needs a fresh live comment test.</p><a href="http://127.0.0.1:3000/" target="_blank" rel="noopener noreferrer">Open local control room ↗</a></div></section>
       <section class="hosting-panel hidden" id="hosting-self-hosted"><h2>Run on this computer</h2><p>Keep your laptop or home server online and awake. No VPS, domain, or port forwarding is needed with polling.</p><ol><li><a href="https://github.com/1295pro/ig-replybot-dev/releases/latest" target="_blank" rel="noopener noreferrer">Download the app for your computer ↗</a>, extract the ZIP, and run the included launcher.</li><li>The control room opens and signs you in automatically. Create your own Meta app and generate an Instagram access token.</li><li>Connect Instagram below, then save your trigger word, public reply, and DM.</li><li>Pause any other copy for the same account, enable this bot, and wait for polling to become healthy.</li><li>Leave a new trigger-word comment from another account and confirm both replies.</li></ol><p>Settings stay in your user data folder between launches. Public policy and data-deletion pages may be required by Meta; see the <a href="https://github.com/1295pro/ig-replybot-dev/blob/main/docs/USER_GUIDE.md" target="_blank" rel="noopener noreferrer">setup guide ↗</a>. The controls below manage the bot opened in this tab.</p></section>
       <section id="overview" class="hero section-anchor">
         <div class="hero-copy"><div class="eyebrow">Comment automation</div><h2>Turn one word into a conversation.</h2><p>Watch new comments, reply in public, then send the follow-up privately. Your rules and delivery status live here.</p><div class="pills"><span class="pill">Trigger <b id="hero-keyword">“bot”</b></span><span class="pill">Public reply <b>+ DM</b></span><span class="pill">Self-hosted</span></div></div>
@@ -97,17 +100,24 @@
         <article class="card section-anchor" id="behavior"><div class="card-head"><div><h3>Reply behavior</h3><div class="card-sub">Settings apply immediately and are kept in the bot's private data folder.</div></div></div>
           <form id="settings-form"><div class="field"><label for="keyword">Exact comment trigger</label><input id="keyword" value="bot" maxlength="80" required><small>Case and surrounding punctuation are ignored. “I want a bot” does not match “bot”.</small></div><div class="field"><label for="public-reply">Public reply</label><textarea id="public-reply" maxlength="1000" required>Thanks for commenting!</textarea></div><div class="field"><label for="private-reply">Private reply</label><textarea id="private-reply" maxlength="1000" required>Here is the information you asked for.</textarea></div><div class="two"><div class="field"><label for="poll-enabled">Comment source</label><select id="poll-enabled"><option value="true">Polling + optional webhook</option><option value="false">Webhook only</option></select></div><div class="field"><label for="poll-interval">Check for comments</label><select id="poll-interval"><option value="60">Every minute</option><option value="120">Every 2 minutes</option><option value="300">Every 5 minutes</option><option value="900">Every 15 minutes</option><option value="3600">Every hour</option></select></div></div><div class="field"><small>Polling uses Meta API requests. Webhooks can deliver matching comments sooner.</small></div><div class="form-actions"><button class="primary" type="submit">Save reply rules</button><span class="note" id="rules-saved">Changes update without restarting.</span></div></form>
         </article>
-        <article class="card section-anchor deploy-card" id="deploy"><div class="card-head"><div><h3>Deploy a separate bot to your VPS</h3><div class="card-sub">Connect Instagram and save the trigger first. The installer builds an isolated Docker project and runs the Meta polling check.</div></div><span class="status-chip" id="deploy-status">Not deployed</span></div>
+        <article class="card section-anchor deploy-card" id="deploy"><div class="card-head"><div><h3>Connect a VPS</h3><div class="card-sub">Check for an existing bot or install a new one after connecting Instagram.</div></div><span class="status-chip" id="deploy-status">Not checked</span></div>
           <div class="notice">Root SSH is used only for this deployment request and is never saved. The VPS fingerprint must be checked before the password is sent. The installer does not change your firewall, Nginx, or existing containers.</div>
           <div class="two"><div class="field"><label for="deploy-host">VPS IPv4 address or hostname</label><input id="deploy-host" autocomplete="off" placeholder="203.0.113.10" required></div><div class="field"><label for="deploy-ssh-port">SSH port</label><input id="deploy-ssh-port" type="number" min="1" max="65535" value="22" required></div></div>
           <div class="two"><div class="field"><label for="deploy-service-port">Private control-room port</label><input id="deploy-service-port" type="number" min="1024" max="65535" value="12950" required><small>Port on the VPS. Your SSH tunnel can use a different port on this computer.</small></div><div class="field"><label for="deploy-user">SSH account</label><input id="deploy-user" value="root" readonly><small>Root is required to install Docker and create the isolated service.</small></div></div>
           <div class="field"><button class="secondary" id="fingerprint-button" type="button">Read SSH server fingerprint</button><div class="fingerprint-box hidden" id="fingerprint-box"><strong>SSH host fingerprint</strong><code id="fingerprint-value"></code><label class="check-row"><input id="fingerprint-confirm" type="checkbox"> I checked this fingerprint in my VPS provider's console</label></div></div>
-          <div class="two"><div class="field"><label for="deploy-ssh-password">Root SSH password</label><input id="deploy-ssh-password" type="password" autocomplete="new-password" placeholder="Used for setup; never saved"></div><div class="field"><label for="deploy-admin-password">New VPS control-room password</label><input id="deploy-admin-password" type="password" autocomplete="new-password" minlength="32" placeholder="At least 32 characters"><small>This password is saved on the VPS to protect its control room.</small></div></div>
-          <div class="form-actions"><button class="secondary" id="preflight-button" type="button" disabled>Check server</button><span class="note">Checks root access, Linux support, Docker, Compose, and port availability.</span></div>
+          <div class="field"><label for="deploy-ssh-password">Root SSH password</label><input id="deploy-ssh-password" type="password" autocomplete="new-password" placeholder="Used for setup; never saved"></div>
+          <div class="form-actions"><button class="secondary" id="preflight-button" type="button" disabled>Check server</button><span class="note">Checks SSH access and identifies any bot on the private port.</span></div>
           <div class="deploy-result hidden" id="preflight-result" role="status"></div>
+          <div class="hosting-help hidden" id="existing-vps-access">
+            <p>Run this SSH command in a terminal and leave it open. Sign in with the existing VPS control-room password.</p>
+            <pre class="deploy-result"><code id="existing-vps-command"></code></pre><a id="existing-vps-link" target="_blank" rel="noopener noreferrer">Open VPS control room ↗</a>
+          </div>
+          <div id="install-options" class="hidden">
+          <div class="field"><label for="deploy-admin-password">New VPS control-room password</label><input id="deploy-admin-password" type="password" autocomplete="new-password" minlength="32" placeholder="At least 32 characters"><small>This password is saved on the VPS to protect its control room.</small></div>
           <div class="deploy-plan"><strong>What happens when you install</strong><ul><li>Install Docker from its official repository on Ubuntu/Debian if Docker is missing.</li><li>Upload only the app source and runtime settings into a new private folder.</li><li>Build a non-root container with persistent data and a loopback-only admin port.</li><li>Start the bot and wait for a successful poll of the connected Instagram account.</li></ul></div>
           <label class="check-row deploy-consent"><input id="deploy-confirm" type="checkbox"> I reviewed the server changes above and want to install this separate container</label>
           <div class="form-actions"><button class="primary" id="install-button" type="button" disabled>Deploy and run checks</button><span class="note" id="deploy-progress">Automation on this computer must be paused first.</span></div>
+          </div>
           <div class="deploy-result hidden" id="deploy-result" role="status"></div>
         </article>
         <article class="card section-anchor" id="webhooks"><div class="card-head"><div><h3>Meta webhook</h3><div class="card-sub">Optional. Polling works without an incoming public connection.</div></div><span class="status-chip" id="webhook-status">Optional</span></div>
@@ -140,7 +150,13 @@
     function show(message,error=false){const el=$('banner');el.textContent=message;el.classList.toggle('error',error);el.classList.add('show');clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>el.classList.remove('show'),3800)}
     function setStep(id,done,label){const el=$(id);el.classList.toggle('done',done);el.querySelector('.step-status')?.replaceChildren(document.createTextNode(label))}
     function setHostingMode(mode){hostingMode=mode;$('view-vps').setAttribute('aria-pressed',String(mode==='vps'));$('view-self-hosted').setAttribute('aria-pressed',String(mode==='self-hosted'));$('hosting-vps').classList.toggle('hidden',mode!=='vps');$('hosting-self-hosted').classList.toggle('hidden',mode!=='self-hosted');$('deploy').classList.toggle('hidden',mode!=='vps'||!canDeployHere)}
-    function renderHosting(data){if(!hostingMode)setHostingMode(data.deployment?'vps':'self-hosted');const target=data.deployment;if(target){$('hosting-address').textContent=target.host;$('hosting-ssh-port').textContent='SSH port '+target.ssh_port;$('hosting-control-port').textContent='Private panel port '+target.service_port;$('hosting-state').textContent=canDeployHere?'Saved installation address. Open its control room through SSH to see its live status.':data.automation_enabled?(data.polling_state==='healthy'?'Bot running · Meta polling healthy':'Bot running · polling '+data.polling_state):'Bot paused on this VPS';$('change-vps').textContent='Change VPS'}else{$('hosting-address').textContent='No VPS address saved';$('hosting-ssh-port').textContent='';$('hosting-control-port').textContent='';$('hosting-state').textContent='Already running a bot on a VPS? Open its control room through SSH.';$('change-vps').textContent='Set up a VPS'}}
+    function renderHosting(data){if(!hostingMode)setHostingMode(data.deployment?'vps':'self-hosted');const target=data.deployment;
+      $('saved-vps-access').classList.toggle('hidden',!canDeployHere||!target);
+      if(canDeployHere&&target){
+        const port=target.service_port;
+        setVpsAccess('saved',port,'ssh -N -o ExitOnForwardFailure=yes -p '+target.ssh_port+' -L 127.0.0.1:'+port+':127.0.0.1:'+port+' root@'+target.host);
+      }
+      if(target){$('hosting-address').textContent=target.host;$('hosting-ssh-port').textContent='SSH port '+target.ssh_port;$('hosting-control-port').textContent='Private panel port '+target.service_port;$('hosting-state').textContent=canDeployHere?'Saved installation address. Open its control room through SSH to see its live status.':data.automation_enabled?(data.polling_state==='healthy'?'Bot running · Meta polling healthy':'Bot running · polling '+data.polling_state):'Bot paused on this VPS';$('change-vps').textContent='Change VPS'}else{$('hosting-address').textContent='No VPS address saved';$('hosting-ssh-port').textContent='';$('hosting-control-port').textContent='';$('hosting-state').textContent='Already running a bot on a VPS? Open its control room through SSH.';$('change-vps').textContent='Connect a VPS'}}
     function renderActivity(items){const list=$('activity-list');list.replaceChildren();if(!items.length){const empty=document.createElement('div');empty.className='activity-empty';empty.textContent='No matching comments have been processed yet.';list.append(empty);return}items.forEach(item=>{const row=document.createElement('div');row.className='activity-row';let label='Waiting to send public reply';let icon='↗';if(['failed','uncertain'].includes(item.public_reply_status)){label=item.public_reply_status==='uncertain'?'Public reply outcome is uncertain':'Public reply failed';row.classList.add('attention');icon='!'}else if(item.public_reply_status==='sent'&&['failed','uncertain'].includes(item.private_reply_status)){label=item.private_reply_status==='uncertain'?'DM outcome is uncertain':'DM failed';row.classList.add('attention');icon='!'}else if(item.public_reply_status==='sent'&&item.private_reply_status==='sent'){label='Public reply and DM sent';icon='✓'}else if(item.public_reply_status==='sent'){label='Sending private reply';icon='✉'}else if(item.public_reply_status==='in_flight'){label='Sending public reply';icon='…'}const badge=document.createElement('span');badge.className='activity-icon';badge.textContent=icon;const title=document.createElement('span');title.className='activity-title';title.textContent=label;const time=document.createElement('time');time.className='activity-time';time.dateTime=new Date(item.received_at*1000).toISOString();time.textContent=new Date(item.received_at*1000).toLocaleString();row.append(badge,title,time);list.append(row)})}
     function render(data){currentStatus=data;
       const active=data.automation_enabled;
@@ -179,14 +195,87 @@
     $('automation-action').addEventListener('click',toggleAutomation);$('automation-toggle').addEventListener('click',toggleAutomation);
     $('view-vps').addEventListener('click',()=>setHostingMode('vps'));$('view-self-hosted').addEventListener('click',()=>setHostingMode('self-hosted'));
     $('change-vps').addEventListener('click',()=>{$('change-vps-help').classList.remove('hidden');if(canDeployHere){$('deploy-host').value='';$('deploy-host').dispatchEvent(new Event('input'));$('deploy').scrollIntoView({behavior:'smooth',block:'start'});show('Enter the new VPS address. Pause the old bot before installing another copy.')}});
-    let trustedFingerprint='',preflightInfo=null;
+    let trustedFingerprint='',preflightInfo=null,preflightRevision=0,checkingVps=false;
     const connection=()=>({host:$('deploy-host').value.trim(),ssh_port:Number($('deploy-ssh-port').value),service_port:Number($('deploy-service-port').value),username:'root'});
-    function resetPreflight(){preflightInfo=null;$('preflight-result').classList.add('hidden');$('install-button').disabled=true;}
+    function setVpsAccess(section,port,command){
+      $(section+'-vps-command').textContent=command;
+      $(section+'-vps-link').href='http://127.0.0.1:'+port+'/';
+    }
+    function resetPreflight(){
+      preflightRevision++;
+      preflightInfo=null;
+      $('deploy-status').textContent='Not checked';
+      $('deploy-status').className='status-chip';
+      $('preflight-result').classList.add('hidden');
+      $('existing-vps-access').classList.add('hidden');
+      $('install-options').classList.add('hidden');
+      $('deploy-confirm').checked=false;
+      $('install-button').disabled=true;
+    }
     function canPreflight(){return Boolean(trustedFingerprint&&$('fingerprint-confirm').checked&&$('deploy-ssh-password').value);}
-    function updateDeployButtons(){$('preflight-button').disabled=!canPreflight();$('install-button').disabled=!(preflightInfo&&$('deploy-confirm').checked&&$('deploy-admin-password').value.length>=32&&$('deploy-ssh-password').value);}
+    function updateDeployButtons(){
+      $('preflight-button').disabled=checkingVps||!canPreflight();
+      $('install-button').disabled=!(preflightInfo&&$('deploy-confirm').checked&&$('deploy-admin-password').value.length>=32&&$('deploy-ssh-password').value);
+    }
     async function readFingerprint(){const button=$('fingerprint-button');button.disabled=true;resetPreflight();trustedFingerprint='';$('fingerprint-confirm').checked=false;$('fingerprint-box').classList.add('hidden');try{const result=await api('/api/admin/deploy/fingerprint',{method:'POST',body:JSON.stringify({connection:connection()})});trustedFingerprint=result.fingerprint;$('fingerprint-value').textContent=trustedFingerprint;$('fingerprint-box').classList.remove('hidden');show('Fingerprint received. Verify it in your VPS provider console before continuing.')}catch(error){show(error.message,true)}finally{button.disabled=false;updateDeployButtons()}}
-    async function checkVps(){const button=$('preflight-button'),resultBox=$('preflight-result');button.disabled=true;resetPreflight();resultBox.classList.remove('hidden','error','success');resultBox.textContent='Connecting over SSH and checking the VPS…';try{preflightInfo=await api('/api/admin/deploy/preflight',{method:'POST',body:JSON.stringify({connection:connection(),host_fingerprint:trustedFingerprint,ssh_password:$('deploy-ssh-password').value})});const lines=['Server: '+preflightInfo.os_name+' ('+preflightInfo.architecture+')','Docker Engine: '+(preflightInfo.docker_installed?(preflightInfo.docker_running?'running':'installed; will be started'):'missing; will be installed'), 'Docker Compose: '+(preflightInfo.compose_installed?'available':'missing'), 'Existing IG Reply Bot: '+(preflightInfo.existing_bot_detected?'detected; pause it before installing':'not detected'), 'Private port '+connection().service_port+': '+(preflightInfo.port_available?'available':'already in use'), 'Automation on this computer must be paused.'];resultBox.textContent=lines.join('\n');const supported=!preflightInfo.existing_bot_detected&&preflightInfo.port_available&&(preflightInfo.docker_installed?preflightInfo.compose_installed:preflightInfo.install_docker_supported);resultBox.classList.add(supported?'success':'error');if(supported){show('VPS checks passed. Review the install plan and confirm to continue.')}else{preflightInfo=null;show('VPS is not ready for automatic installation.',true)}}catch(error){preflightInfo=null;resultBox.classList.add('error');resultBox.textContent=error.message;show(error.message,true)}finally{button.disabled=false;updateDeployButtons()}}
-    async function installOnVps(){if(!preflightInfo||!$('deploy-confirm').checked)return;const button=$('install-button'),progress=$('deploy-progress'),resultBox=$('deploy-result');button.disabled=true;button.textContent='Installing…';progress.textContent='Installing Docker if needed, building the container, and waiting for the first successful Meta poll. This can take several minutes.';resultBox.classList.add('hidden');try{const result=await api('/api/admin/deploy/install',{method:'POST',body:JSON.stringify({connection:connection(),host_fingerprint:trustedFingerprint,ssh_password:$('deploy-ssh-password').value,remote_admin_password:$('deploy-admin-password').value})});const tunnelUrl='http://127.0.0.1:'+result.service_port+'/';resultBox.classList.remove('hidden','error');resultBox.classList.add('success');resultBox.textContent='Deployment and automated checks passed.\nInstagram account: @'+result.account_username+'\nTrigger: '+result.keyword+'\nPrivate admin URL after opening the tunnel: '+tunnelUrl+'\nTunnel command: '+result.tunnel_command+'\nRemote folder: '+result.remote_directory+'\n\n'+result.live_test_instruction;progress.textContent='The VPS bot is running. The local copy stayed paused.';$('deploy-status').textContent='Checks passed';$('deploy-status').className='status-chip good';show('VPS deployment passed its automated checks. Run the Instagram comment test now.')}catch(error){resultBox.classList.remove('hidden','success');resultBox.classList.add('error');resultBox.textContent='Deployment did not pass all checks.\n'+error.message;progress.textContent='The installer stopped or paused the remote bot after a failed check.';show(error.message,true)}finally{$('deploy-ssh-password').value='';button.textContent='Deploy and run checks';updateDeployButtons()}}
+    async function checkVps(){
+      if(checkingVps||!canPreflight())return;
+      checkingVps=true;
+      resetPreflight();
+      updateDeployButtons();
+      const revision=preflightRevision,target=connection(),resultBox=$('preflight-result');
+      resultBox.classList.remove('hidden','error','success');
+      resultBox.textContent='Connecting over SSH and checking the VPS…';
+      try{
+        const info=await api('/api/admin/deploy/preflight',{method:'POST',body:JSON.stringify({
+          connection:target,host_fingerprint:trustedFingerprint,ssh_password:$('deploy-ssh-password').value
+        })});
+        if(revision!==preflightRevision)return;
+        const bot=info.existing_bot;
+        if(bot){
+          const healthy=bot.automation_enabled&&bot.polling_state==='healthy';
+          const status=healthy?'Running · Meta polling healthy':bot.automation_enabled?'Running · polling '+bot.polling_state:'Paused';
+          resultBox.textContent=['Existing VPS bot verified','Instagram account: @'+bot.account_username,'Trigger: '+bot.keyword,'Status: '+status].join('\n');
+          resultBox.classList.add('success');
+          $('deploy-status').textContent=healthy?'Connected · healthy':'Connected';
+          $('deploy-status').className='status-chip '+(healthy?'good':'');
+          $('deploy-ssh-password').value='';
+          setVpsAccess('existing',target.service_port,bot.tunnel_command);
+          $('existing-vps-access').classList.remove('hidden');
+          show(healthy?'Existing VPS bot is healthy. Open its control room through SSH.':'Existing VPS bot found. Open its control room to manage it.');
+          await refresh();
+          return;
+        }
+        const lines=['Server: '+info.os_name+' ('+info.architecture+')'];
+        const supported=!info.existing_bot_detected&&info.port_available&&(info.docker_installed?info.compose_installed:info.install_docker_supported);
+        if(info.existing_bot_detected){
+          lines.push('An IG Reply Bot is running on this VPS. Check the private panel port shown by its original deployment.');
+        }else if(!info.port_available){
+          lines.push('Port '+target.service_port+' is in use, but no supported IG Reply Bot was verified there. Check the port before continuing.');
+        }else{
+          lines.push('Docker Engine: '+(info.docker_installed?(info.docker_running?'running':'installed; will be started'):'missing; will be installed'));
+          lines.push('Docker Compose: '+(info.compose_installed?'available':info.docker_installed?'missing':'will be installed'));
+        }
+        resultBox.textContent=lines.join('\n');
+        resultBox.classList.add(supported?'success':'error');
+        if(supported){
+          preflightInfo=info;
+          $('install-options').classList.remove('hidden');
+          show('VPS checks passed. Review the install plan to continue.');
+        }else{
+          show('Check the VPS details above.',true);
+        }
+      }catch(error){
+        if(revision!==preflightRevision)return;
+        resultBox.classList.add('error');
+        resultBox.textContent=error.message;
+        show(error.message,true);
+      }finally{
+        checkingVps=false;
+        updateDeployButtons();
+      }
+    }
+    async function installOnVps(){if(!preflightInfo||!$('deploy-confirm').checked)return;const button=$('install-button'),progress=$('deploy-progress'),resultBox=$('deploy-result');button.disabled=true;button.textContent='Installing…';progress.textContent='Installing Docker if needed, building the container, and waiting for the first successful Meta poll. This can take several minutes.';resultBox.classList.add('hidden');try{const result=await api('/api/admin/deploy/install',{method:'POST',body:JSON.stringify({connection:connection(),host_fingerprint:trustedFingerprint,ssh_password:$('deploy-ssh-password').value,remote_admin_password:$('deploy-admin-password').value})});const tunnelUrl='http://127.0.0.1:'+result.service_port+'/';resultBox.classList.remove('hidden','error');resultBox.classList.add('success');resultBox.textContent='Deployment and automated checks passed.\nInstagram account: @'+result.account_username+'\nTrigger: '+result.keyword+'\nPrivate admin URL after opening the tunnel: '+tunnelUrl+'\nTunnel command: '+result.tunnel_command+'\nRemote folder: '+result.remote_directory+'\n\n'+result.live_test_instruction;progress.textContent='The VPS bot is running. The local copy stayed paused.';$('deploy-status').textContent='Checks passed';$('deploy-status').className='status-chip good';show('VPS deployment passed its automated checks. Run the Instagram comment test now.')}catch(error){resultBox.classList.remove('hidden','success');resultBox.classList.add('error');resultBox.textContent='Deployment did not pass all checks.\n'+error.message;progress.textContent='Review the server message and run Check server again.';show(error.message,true)}finally{$('deploy-ssh-password').value='';button.textContent='Deploy and run checks';updateDeployButtons()}}
     $('fingerprint-button').addEventListener('click',readFingerprint);$('preflight-button').addEventListener('click',checkVps);$('install-button').addEventListener('click',installOnVps);
     $('fingerprint-confirm').addEventListener('change',()=>{resetPreflight();updateDeployButtons()});$('deploy-confirm').addEventListener('change',updateDeployButtons);$('deploy-admin-password').addEventListener('input',updateDeployButtons);$('deploy-ssh-password').addEventListener('input',updateDeployButtons);
     ['deploy-host','deploy-ssh-port','deploy-service-port'].forEach(id=>$(id).addEventListener('input',()=>{trustedFingerprint='';$('fingerprint-confirm').checked=false;$('fingerprint-box').classList.add('hidden');resetPreflight();updateDeployButtons()}));
