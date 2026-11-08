@@ -2,6 +2,11 @@
 
 Connect your own Instagram Business or Creator account, set a trigger and two replies, then run the bot on your computer or on a VPS.
 
+## What's new in 1.0.1
+
+- Every platform ZIP now includes the updated setup guide and instructions for publishing your own Meta policy pages with Google Sites.
+- The VPS screen distinguishes a saved server address from the live control room. The guide shows how to reopen the existing VPS panel through SSH while keeping the desktop panel on port 3000.
+
 ## Included
 
 - A browser control room for your account, trigger, public reply, and DM.
@@ -18,4 +23,4 @@ Connect your own Instagram Business or Creator account, set a trigger and two re
 - Failed or uncertain deliveries are shown for review and are not automatically retried.
 - The ready-to-run packages are unsigned. Windows 11 Smart App Control may block the Windows build without offering a per-app exception.
 
-Meta controls account access, token validity, API limits, and message delivery. See the [quick start](docs/QUICK_START.md), [full setup guide](docs/USER_GUIDE.md), and [testing notes](docs/TESTING.md) before deploying.
+Meta controls account access, token validity, API limits, and message delivery. See the [quick start](https://github.com/1295pro/ig-replybot-dev/blob/v1.0.1/docs/QUICK_START.md), [full setup guide](https://github.com/1295pro/ig-replybot-dev/blob/v1.0.1/docs/USER_GUIDE.md), and [testing notes](https://github.com/1295pro/ig-replybot-dev/blob/v1.0.1/docs/TESTING.md) before deploying.
